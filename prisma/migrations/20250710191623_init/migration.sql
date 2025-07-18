@@ -1,0 +1,277 @@
+-- CreateEnum
+CREATE TYPE "Rol" AS ENUM ('UAI', 'UA', 'UV', 'UReg', 'UTI', 'UR', 'UC', 'UE', 'ULL', 'UEN');
+
+-- CreateEnum
+CREATE TYPE "EstadoRegistro" AS ENUM ('SN_OK', 'SCRAP_COSMETICO', 'SCRAP_ELECTRONICO', 'SCRAP_INFESTACION', 'REPARACION');
+
+-- CreateEnum
+CREATE TYPE "EstadoLote" AS ENUM ('EN_PROCESO', 'PAUSADO', 'COMPLETADO', 'CANCELADO');
+
+-- CreateEnum
+CREATE TYPE "FaseProceso" AS ENUM ('REGISTRO', 'TEST_INICIAL', 'COSMETICA', 'LIBERACION_LIMPIEZA', 'ENSAMBLE', 'RETEST', 'EMPAQUE');
+
+-- CreateTable
+CREATE TABLE "User" (
+    "id" SERIAL NOT NULL,
+    "nombre" TEXT NOT NULL,
+    "userName" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "password" TEXT NOT NULL,
+    "rol" "Rol" NOT NULL,
+    "activo" BOOLEAN NOT NULL,
+    "deletedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CatalogoSKU" (
+    "id" SERIAL NOT NULL,
+    "nombre" TEXT NOT NULL,
+    "descripcion" TEXT,
+
+    CONSTRAINT "CatalogoSKU_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Lote" (
+    "id" SERIAL NOT NULL,
+    "numero" TEXT NOT NULL,
+    "skuId" INTEGER NOT NULL,
+    "estado" "EstadoLote" NOT NULL DEFAULT 'EN_PROCESO',
+    "prioridad" INTEGER NOT NULL DEFAULT 5,
+    "responsableId" INTEGER NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deletedAt" TIMESTAMP(3),
+
+    CONSTRAINT "Lote_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Modem" (
+    "id" SERIAL NOT NULL,
+    "sn" TEXT NOT NULL,
+    "skuId" INTEGER,
+    "estadoActualId" INTEGER NOT NULL,
+    "faseActual" "FaseProceso" NOT NULL,
+    "loteId" INTEGER NOT NULL,
+    "responsableId" INTEGER NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deletedAt" TIMESTAMP(3),
+
+    CONSTRAINT "Modem_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Registro" (
+    "id" SERIAL NOT NULL,
+    "sn" TEXT NOT NULL,
+    "fase" "FaseProceso" NOT NULL,
+    "estado" "EstadoRegistro" NOT NULL,
+    "motivoScrapId" INTEGER,
+    "reparacion" TEXT,
+    "userId" INTEGER NOT NULL,
+    "loteId" INTEGER NOT NULL,
+    "modemId" INTEGER NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Registro_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "TransicionFase" (
+    "id" SERIAL NOT NULL,
+    "modemId" INTEGER NOT NULL,
+    "faseDesde" "FaseProceso",
+    "faseHacia" "FaseProceso" NOT NULL,
+    "userId" INTEGER NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "TransicionFase_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "MotivoScrap" (
+    "id" SERIAL NOT NULL,
+    "nombre" TEXT NOT NULL,
+
+    CONSTRAINT "MotivoScrap_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Log" (
+    "id" SERIAL NOT NULL,
+    "accion" TEXT NOT NULL,
+    "entidad" TEXT NOT NULL,
+    "detalle" TEXT,
+    "userId" INTEGER NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Log_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Estado" (
+    "id" SERIAL NOT NULL,
+    "nombre" TEXT NOT NULL,
+    "descripcion" TEXT,
+    "codigoInterno" TEXT NOT NULL,
+    "esFinal" BOOLEAN NOT NULL DEFAULT false,
+    "requiereObservacion" BOOLEAN NOT NULL DEFAULT false,
+    "ordenDisplay" INTEGER NOT NULL DEFAULT 0,
+    "color" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Estado_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "TransicionEstado" (
+    "id" SERIAL NOT NULL,
+    "estadoDesdeId" INTEGER NOT NULL,
+    "estadoHaciaId" INTEGER NOT NULL,
+    "nombreEvento" TEXT NOT NULL,
+    "descripcion" TEXT,
+    "requiereCantidad" BOOLEAN NOT NULL DEFAULT false,
+    "requiereObservacion" BOOLEAN NOT NULL DEFAULT false,
+    "rolesPermitidos" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "TransicionEstado_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "EstadoTransicion" (
+    "id" SERIAL NOT NULL,
+    "modemId" INTEGER NOT NULL,
+    "estadoAnteriorId" INTEGER,
+    "estadoNuevoId" INTEGER NOT NULL,
+    "fase" "FaseProceso" NOT NULL,
+    "evento" TEXT NOT NULL,
+    "cantidad" INTEGER,
+    "observaciones" TEXT,
+    "userId" INTEGER NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "EstadoTransicion_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_userName_key" ON "User"("userName");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CatalogoSKU_nombre_key" ON "CatalogoSKU"("nombre");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Lote_numero_key" ON "Lote"("numero");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Modem_sn_key" ON "Modem"("sn");
+
+-- CreateIndex
+CREATE INDEX "Registro_userId_idx" ON "Registro"("userId");
+
+-- CreateIndex
+CREATE INDEX "Registro_loteId_idx" ON "Registro"("loteId");
+
+-- CreateIndex
+CREATE INDEX "Registro_modemId_idx" ON "Registro"("modemId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "MotivoScrap_nombre_key" ON "MotivoScrap"("nombre");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Estado_nombre_key" ON "Estado"("nombre");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Estado_codigoInterno_key" ON "Estado"("codigoInterno");
+
+-- CreateIndex
+CREATE INDEX "TransicionEstado_estadoDesdeId_idx" ON "TransicionEstado"("estadoDesdeId");
+
+-- CreateIndex
+CREATE INDEX "TransicionEstado_estadoHaciaId_idx" ON "TransicionEstado"("estadoHaciaId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "TransicionEstado_estadoDesdeId_nombreEvento_key" ON "TransicionEstado"("estadoDesdeId", "nombreEvento");
+
+-- CreateIndex
+CREATE INDEX "EstadoTransicion_modemId_idx" ON "EstadoTransicion"("modemId");
+
+-- CreateIndex
+CREATE INDEX "EstadoTransicion_estadoAnteriorId_idx" ON "EstadoTransicion"("estadoAnteriorId");
+
+-- CreateIndex
+CREATE INDEX "EstadoTransicion_estadoNuevoId_idx" ON "EstadoTransicion"("estadoNuevoId");
+
+-- CreateIndex
+CREATE INDEX "EstadoTransicion_userId_idx" ON "EstadoTransicion"("userId");
+
+-- CreateIndex
+CREATE INDEX "EstadoTransicion_fase_idx" ON "EstadoTransicion"("fase");
+
+-- AddForeignKey
+ALTER TABLE "Lote" ADD CONSTRAINT "Lote_skuId_fkey" FOREIGN KEY ("skuId") REFERENCES "CatalogoSKU"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Lote" ADD CONSTRAINT "Lote_responsableId_fkey" FOREIGN KEY ("responsableId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Modem" ADD CONSTRAINT "Modem_skuId_fkey" FOREIGN KEY ("skuId") REFERENCES "CatalogoSKU"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Modem" ADD CONSTRAINT "Modem_estadoActualId_fkey" FOREIGN KEY ("estadoActualId") REFERENCES "Estado"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Modem" ADD CONSTRAINT "Modem_loteId_fkey" FOREIGN KEY ("loteId") REFERENCES "Lote"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Modem" ADD CONSTRAINT "Modem_responsableId_fkey" FOREIGN KEY ("responsableId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Registro" ADD CONSTRAINT "Registro_motivoScrapId_fkey" FOREIGN KEY ("motivoScrapId") REFERENCES "MotivoScrap"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Registro" ADD CONSTRAINT "Registro_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Registro" ADD CONSTRAINT "Registro_loteId_fkey" FOREIGN KEY ("loteId") REFERENCES "Lote"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Registro" ADD CONSTRAINT "Registro_modemId_fkey" FOREIGN KEY ("modemId") REFERENCES "Modem"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TransicionFase" ADD CONSTRAINT "TransicionFase_modemId_fkey" FOREIGN KEY ("modemId") REFERENCES "Modem"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TransicionFase" ADD CONSTRAINT "TransicionFase_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Log" ADD CONSTRAINT "Log_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TransicionEstado" ADD CONSTRAINT "TransicionEstado_estadoDesdeId_fkey" FOREIGN KEY ("estadoDesdeId") REFERENCES "Estado"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TransicionEstado" ADD CONSTRAINT "TransicionEstado_estadoHaciaId_fkey" FOREIGN KEY ("estadoHaciaId") REFERENCES "Estado"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "EstadoTransicion" ADD CONSTRAINT "EstadoTransicion_modemId_fkey" FOREIGN KEY ("modemId") REFERENCES "Modem"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "EstadoTransicion" ADD CONSTRAINT "EstadoTransicion_estadoAnteriorId_fkey" FOREIGN KEY ("estadoAnteriorId") REFERENCES "Estado"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "EstadoTransicion" ADD CONSTRAINT "EstadoTransicion_estadoNuevoId_fkey" FOREIGN KEY ("estadoNuevoId") REFERENCES "Estado"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "EstadoTransicion" ADD CONSTRAINT "EstadoTransicion_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
