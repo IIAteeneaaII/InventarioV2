@@ -69,9 +69,9 @@
             <% for (const sku of skuData) { %>
               <tr>
                 <td><%= sku.nombre %></td>
-                <td contenteditable="<%= user.rol === 'UAI' ? 'true' : 'false' %>"><%= sku.entrada || 0 %></td>
-                <td contenteditable="<%= user.rol === 'UAI' ? 'true' : 'false' %>"><%= sku.salida || 0 %></td>
-                <td contenteditable="<%= user.rol === 'UAI' ? 'true' : 'false' %>"><%= sku.enProceso || 0 %></td>
+                <td contenteditable="<%= user.rol === 'UAI' ? 'false' : 'false' %>"><%= sku.entrada || 0 %></td>
+                <td contenteditable="<%= user.rol === 'UAI' ? 'false' : 'false' %>"><%= sku.salida || 0 %></td>
+                <td contenteditable="<%= user.rol === 'UAI' ? 'false' : 'false' %>"><%= sku.enProceso || 0 %></td>
               </tr>
             <% } %>
           </tbody>
