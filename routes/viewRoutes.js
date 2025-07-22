@@ -6,37 +6,47 @@ const prisma = new PrismaClient();
 const adminController = require('../controllers/adminController');
 const { vistaEditarUsuario } = require('../controllers/adminController');
 
-router.get('/vista/:skuCode', verificarAuth, async (req, res) => {
-  const skuCode = req.params.skuCode;
-  const user = req.user;
-
+// --- VISTA POR SKU (actualizado según C1) ---
+router.get('/seleccionar-sku', verificarAuth, async (req, res) => {
   try {
-    // Buscar el SKU en la tabla CatalogoSKU
+    const user = req.user;
+    const skuId = parseInt(req.params.skuCode);
+
     const sku = await prisma.catalogoSKU.findUnique({
-      where: { nombre: skuCode }
+      where: { id: skuId }
     });
 
     if (!sku) {
-      return res.status(404).render('404', { message: 'SKU no encontrado' });
+      return res.status(404).send('SKU no encontrado');
     }
 
-    // Buscar la vista correspondiente al rol del usuario
-    const vistaAsignada = await prisma.vistaPorSKU.findFirst({
+    // Buscar la vista exacta para el SKU y el rol del usuario
+    const vistaSKU = await prisma.vistaPorSKU.findFirst({
       where: {
         skuId: sku.id,
         rol: user.rol
       }
     });
 
-    if (!vistaAsignada) {
-      return res.status(403).render('403', { message: 'No tienes acceso a esta vista' });
+    if (!vistaSKU) {
+      return res.status(404).send('No hay vista registrada para este SKU y rol');
     }
 
-    // Renderizar la vista correspondiente
-    return res.render(vistaAsignada.vista, { user });
+    // Determinar carpeta por rol
+    let carpetaVista = '';
+    if (user.rol === 'UReg') {
+      carpetaVista = 'formato_registro';
+    } else if (user.rol === 'UE') {
+      carpetaVista = 'formato_empaque';
+    } else {
+      carpetaVista = 'formato_general';
+    }
+
+    // Renderizar vista con ruta completa (ej: formato_registro/4KM36BLANCO_69360)
+    res.render(`${carpetaVista}/${vistaSKU.vista}`, { user });
   } catch (error) {
-    console.error(error);
-    return res.status(500).send('Error interno del servidor');
+    console.error('Error al obtener vista por SKU:', error);
+    res.status(500).send('Error interno del servidor');
   }
 });
 
@@ -46,22 +56,18 @@ router.get('/registro_prueba', (req, res) => {
 });
 
 // Dashboard para editar usuarios
-
 router.get('/editarusuario/:id',
   verificarAuth,
-  verificarRol(['UAI', 'UA']), // ✅ llamado correctamente
+  verificarRol(['UAI', 'UA']),
   vistaEditarUsuario
 );
 
-
-// Rutas protegidas (para redirigir a los roles)
 // Dashboard para rol Admin inventario
-// routes/view.js (después)
 router.get(
-  '/adminventario', 
-  verificarAuth, 
-  verificarRol(['UAI', 'UA', 'UV']), 
-  adminController.listarUsuarios    // aquí se hace prisma.findMany + res.render('admin_dashboard',{ usuarios,… })
+  '/adminventario',
+  verificarAuth,
+  verificarRol(['UAI', 'UA', 'UV']),
+  adminController.listarUsuarios
 );
 
 // Tabla de contabilidad por SKU (resumen_totales)
@@ -112,99 +118,99 @@ router.get('/resumen_totales', verificarAuth, verificarRol(['UAI']), async (req,
 });
 
 // Dashboard para rol registro
-router.get('/registro', 
-  verificarAuth,   
-  verificarRol(['UReg']), 
+router.get('/registro',
+  verificarAuth,
+  verificarRol(['UReg']),
   (req, res) => {
-      res.render('registro_lote', { user: req.user });
+    res.render('registro_lote', { user: req.user });
   }
 );
 
-router.get('/seleccionlote', 
-  verificarAuth,   
-  verificarRol(['UA', 'UV', 'UTI', 'UR', 'UC', 'UE', 'ULL','UReg']), 
+router.get('/seleccionlote',
+  verificarAuth,
+  verificarRol(['UA', 'UV', 'UTI', 'UR', 'UC', 'UE', 'ULL', 'UReg']),
   (req, res) => {
-      console.log(`Acceso autorizado: ${req.user.userName} (${req.user.rol}) -> /seleccionlote`);
-      res.render('seleccion_modelo', { user: req.user });
+    console.log(`Acceso autorizado: ${req.user.userName} (${req.user.rol}) -> /seleccionlote`);
+    res.render('seleccion_modelo', { user: req.user });
   }
 );
 
 // Dashboard para rol almacen
-router.get('/almacen', 
-  verificarAuth,   
-  verificarRol('UA'), 
+router.get('/almacen',
+  verificarAuth,
+  verificarRol('UA'),
   (req, res) => {
-      res.render('dashboard_almacen', { user: req.user });
+    res.render('dashboard_almacen', { user: req.user });
   }
 );
 
 // Dashboard para rol visualizador
-router.get('/nuevos_usuarios', 
-  verificarAuth,   
-  verificarRol('UV'), 
+router.get('/nuevos_usuarios',
+  verificarAuth,
+  verificarRol('UV'),
   (req, res) => {
-      res.render('nuevos_usuarios', { user: req.user });
+    res.render('nuevos_usuarios', { user: req.user });
   }
 );
 
 // Dashboard para redireccionamiento a la vista de crear lote
-router.get('/crearlote', 
+router.get('/crearlote',
   (req, res) => {
-      res.render('asignacion_lote', { user: req.user });
+    res.render('asignacion_lote', { user: req.user });
   }
 );
 
 // Dashboard para rol Test inicial
-router.get('/testini', 
-  verificarAuth,   
-  verificarRol('UTI'), 
+router.get('/testini',
+  verificarAuth,
+  verificarRol('UTI'),
   (req, res) => {
-      res.render('seleccion_lote', { user: req.user });
+    res.render('seleccion_lote', { user: req.user });
   }
 );
 
 // Dashboard para rol retest
-router.get('/retest', 
-  verificarAuth,   
-  verificarRol('UR'), 
+router.get('/retest',
+  verificarAuth,
+  verificarRol('UR'),
   (req, res) => {
-      res.render('seleccion_lote', { user: req.user });
+    res.render('seleccion_lote', { user: req.user });
   }
 );
 
 // Dashboard para rol Cosmetica
-router.get('/cosmetica', 
-  verificarAuth,   
-  verificarRol('UC'), 
+router.get('/cosmetica',
+  verificarAuth,
+  verificarRol('UC'),
   (req, res) => {
-      res.render('seleccion_lote', { user: req.user });
+    res.render('seleccion_lote', { user: req.user });
   }
 );
 
 // Dashboard para rol Empaque
-router.get('/empaque', 
-  verificarAuth,   
-  verificarRol('UE'), 
+router.get('/empaque',
+  verificarAuth,
+  verificarRol('UE'),
   (req, res) => {
-      res.render('seleccion_lote', { user: req.user });
+    res.render('seleccion_lote', { user: req.user });
   }
 );
 
 // Dashboard para Liberacion y limpieza
-router.get('/lineaLote', 
-  verificarAuth,   
-  verificarRol('ULL'), 
+router.get('/lineaLote',
+  verificarAuth,
+  verificarRol('ULL'),
   (req, res) => {
-      res.render('seleccion_lote', { user: req.user });
+    res.render('seleccion_lote', { user: req.user });
   }
 );
 
 // Dashboard para Registro
-router.get('/Registros', 
-  verificarAuth,   
-  verificarRol('UReg'), 
+router.get('/Registros',
+  verificarAuth,
+  verificarRol('UReg'),
   (req, res) => {
-      res.render('dashboard_registros', { user: req.user });
+    res.render('dashboard_registros', { user: req.user });
   }
 );
 
@@ -244,10 +250,8 @@ router.get('/sku/:skuId',
 );
 
 // Vista de gráficas (resumen)
-// Vista resumen con consulta SQL corregida
 router.get('/resumen', verificarAuth, verificarRol(['UAI', 'UA', 'UV']), async (req, res) => {
   try {
-    // Consulta SQL sin referencias a deletedAt
     const skuData = await prisma.$queryRaw`
       WITH fases AS (
         SELECT DISTINCT m."faseActual" 
@@ -279,16 +283,15 @@ router.get('/resumen', verificarAuth, verificarRol(['UAI', 'UA', 'UV']), async (
       FROM "CatalogoSKU" c
       ORDER BY c.nombre
     `;
-    // Convertir BigInt a Number
     const processedData = skuData.map(item => ({
       nombre: item.nombre,
       entrada: Number(item.entrada),
       salida: Number(item.salida),
       enProceso: Number(item.enProceso)
     }));
-    res.render('resumen', { 
+    res.render('resumen', {
       user: req.user,
-      skuData: processedData // Importante: pasar skuData a la plantilla
+      skuData: processedData
     });
   } catch (error) {
     console.error('Error al cargar datos de resumen:', error);
@@ -319,11 +322,11 @@ router.get('/resumen', verificarAuth, verificarRol(['UAI', 'UA', 'UV']), async (
   }
 });
 
-router.get('/terminos', 
-  verificarAuth,   
-  verificarRol(['UA', 'UV', 'UTI', 'UR', 'UC', 'UE', 'ULL','UReg', 'UAI']), 
+router.get('/terminos',
+  verificarAuth,
+  verificarRol(['UA', 'UV', 'UTI', 'UR', 'UC', 'UE', 'ULL', 'UReg', 'UAI']),
   (req, res) => {
-      res.render('terminos', { user: req.user });
+    res.render('terminos', { user: req.user });
   }
 );
 

@@ -14,6 +14,7 @@
     "seed:inventario": "node scripts/import_seed.js",
     "seed:users": "node scripts/seed_users.js",
     "seed:sku_lote": "node scripts/seed_sku_lote.js",
+    "seed:vista_sku": "node scripts/seed_vista_sku.js",
     "seed:all": "npm run seed && npm run seed:inventario"
   },
   "prisma": {
