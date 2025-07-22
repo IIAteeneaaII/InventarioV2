@@ -10,6 +10,7 @@ async function main() {
     where: { nombre: 'Fiberhome X-10' },
     update: {},
     create: {
+      id: 15,
       nombre: 'Fiberhome X-10',
       descripcion: 'SKU de prueba para importación'
     }

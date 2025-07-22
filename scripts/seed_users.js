@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 
 async function main() {
   // Contraseña dummy para todos
-  const hashedPassword = await bcrypt.hash('password123', 10);
+  const hashedPassword = await bcrypt.hash('Password#123', 10);
 
   // Usuarios base requeridos
   const usuarios = [
