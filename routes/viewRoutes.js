@@ -1,11 +1,45 @@
 const express = require('express');
 const router = express.Router();
+const jwt = require('jsonwebtoken');
 const { verificarAuth, verificarRol } = require('../controllers/authController');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const adminController = require('../controllers/adminController');
 const { vistaEditarUsuario } = require('../controllers/adminController');
+const fs = require('fs');
+const path = require('path');
 
+// [DEBUG] Middleware global para loguear cada acceso a rutas de este router
+router.use((req, res, next) => {
+  console.log(`[DEBUG RUTAS] Acceso a: ${req.path}, método: ${req.method}, usuario: ${req.user?.userName || 'no autenticado'}`);
+  next();
+});
+
+// Ruta de diagnóstico de autenticación (MOVIDA AQUÍ DESPUÉS DE INICIALIZAR ROUTER)
+router.get('/diagnostico', (req, res) => {
+  const token = req.cookies?.token;
+  let decoded = null;
+  if (token) {
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET || 'supersecret');
+    } catch (err) {
+      console.error('Error al verificar token:', err.message);
+    }
+  }
+  res.send(`
+    <h1>Diagnóstico de Autenticación</h1>
+    <p>Esta página muestra información sobre la autenticación actual.</p>
+    <h2>Estado del token:</h2>
+    <p>${token ? '✅ Token presente' : '❌ No hay token'}</p>
+    <h2>Información decodificada:</h2>
+    <pre>${decoded ? JSON.stringify(decoded, null, 2) : 'No hay información'}</pre>
+    <h2>Información de req.user:</h2>
+    <pre>${req.user ? JSON.stringify(req.user, null, 2) : 'No hay req.user'}</pre>
+    <p><a href="/">Volver al inicio</a></p>
+  `);
+});
+
+// Ruta basada en BD - Si utilizas la tabla VistaPorSKU
 router.get('/vista/:skuCode', verificarAuth, async (req, res) => {
   const skuCode = req.params.skuCode;
   const user = req.user;
@@ -40,31 +74,26 @@ router.get('/vista/:skuCode', verificarAuth, async (req, res) => {
   }
 });
 
-// Ruta pública para registro de usuario (debe estar antes de cualquier middleware de autenticación)
+// Ruta pública para registro de usuario
 router.get('/registro_prueba', (req, res) => {
   res.render('dasboard_registro');
 });
 
 // Dashboard para editar usuarios
-
 router.get('/editarusuario/:id',
   verificarAuth,
-  verificarRol(['UAI', 'UA']), // ✅ llamado correctamente
+  verificarRol(['UAI', 'UA']), 
   vistaEditarUsuario
 );
 
-
-// Rutas protegidas (para redirigir a los roles)
 // Dashboard para rol Admin inventario
-// routes/view.js (después)
-router.get(
-  '/adminventario', 
+router.get('/adminventario', 
   verificarAuth, 
   verificarRol(['UAI', 'UA', 'UV']), 
-  adminController.listarUsuarios    // aquí se hace prisma.findMany + res.render('admin_dashboard',{ usuarios,… })
+  adminController.listarUsuarios
 );
 
-// Tabla de contabilidad por SKU (resumen_totales)
+// Tabla de contabilidad por SKU
 router.get('/resumen_totales', verificarAuth, verificarRol(['UAI']), async (req, res) => {
   try {
     const skuData = await prisma.$queryRaw`
@@ -112,27 +141,38 @@ router.get('/resumen_totales', verificarAuth, verificarRol(['UAI']), async (req,
 });
 
 // Dashboard para rol registro
-router.get('/registro', 
-  verificarAuth,   
-  verificarRol(['UReg']), 
+
+
+
+// Ruta robusta con logs adicionales
+router.get('/seleccionlote', 
+  verificarAuth,
+  (req, res, next) => {
+    // Log detallado antes de verificar rol
+    console.log(`Intento de acceso: ${req.user?.userName} (${req.user?.rol}) -> /seleccionlote`);
+    next();
+  },
+  verificarRol(['UA', 'UV', 'UTI', 'UR', 'UC', 'UE', 'ULL','UReg']),
   (req, res) => {
-      res.render('registro_lote', { user: req.user });
+    console.log(`Acceso autorizado: ${req.user.userName} (${req.user.rol}) -> /seleccionlote`);
+    res.render('seleccion_modelo', { user: req.user });
   }
 );
 
-router.get('/seleccionlote', 
-  verificarAuth,   
-  verificarRol(['UA', 'UV', 'UTI', 'UR', 'UC', 'UE', 'ULL','UReg']), 
+// Ruta alternativa para compatibilidad con guion bajo
+router.get('/seleccionar_modelo', 
+  verificarAuth,
+  verificarRol(['UA', 'UV', 'UTI', 'UR', 'UC', 'UE', 'ULL','UReg']),
   (req, res) => {
-      console.log(`Acceso autorizado: ${req.user.userName} (${req.user.rol}) -> /seleccionlote`);
-      res.render('seleccion_modelo', { user: req.user });
+    console.log(`Redirigiendo: ${req.user.userName} desde /seleccionar_modelo a /seleccionlote`);
+    res.redirect('/seleccionlote');
   }
 );
 
 // Dashboard para rol almacen
 router.get('/almacen', 
   verificarAuth,   
-  verificarRol('UA'), 
+  verificarRol(['UA']), // Corregido: pasar array en lugar de string
   (req, res) => {
       res.render('dashboard_almacen', { user: req.user });
   }
@@ -141,7 +181,7 @@ router.get('/almacen',
 // Dashboard para rol visualizador
 router.get('/nuevos_usuarios', 
   verificarAuth,   
-  verificarRol('UV'), 
+  verificarRol(['UV']), // Corregido: pasar array en lugar de string
   (req, res) => {
       res.render('nuevos_usuarios', { user: req.user });
   }
@@ -149,6 +189,7 @@ router.get('/nuevos_usuarios',
 
 // Dashboard para redireccionamiento a la vista de crear lote
 router.get('/crearlote', 
+  verificarAuth, // Añadido verificarAuth por coherencia
   (req, res) => {
       res.render('asignacion_lote', { user: req.user });
   }
@@ -157,7 +198,7 @@ router.get('/crearlote',
 // Dashboard para rol Test inicial
 router.get('/testini', 
   verificarAuth,   
-  verificarRol('UTI'), 
+  verificarRol(['UTI']), // Corregido: pasar array en lugar de string
   (req, res) => {
       res.render('seleccion_lote', { user: req.user });
   }
@@ -166,7 +207,7 @@ router.get('/testini',
 // Dashboard para rol retest
 router.get('/retest', 
   verificarAuth,   
-  verificarRol('UR'), 
+  verificarRol(['UR']), // Corregido: pasar array en lugar de string
   (req, res) => {
       res.render('seleccion_lote', { user: req.user });
   }
@@ -175,7 +216,7 @@ router.get('/retest',
 // Dashboard para rol Cosmetica
 router.get('/cosmetica', 
   verificarAuth,   
-  verificarRol('UC'), 
+  verificarRol(['UC']), // Corregido: pasar array en lugar de string
   (req, res) => {
       res.render('seleccion_lote', { user: req.user });
   }
@@ -184,7 +225,7 @@ router.get('/cosmetica',
 // Dashboard para rol Empaque
 router.get('/empaque', 
   verificarAuth,   
-  verificarRol('UE'), 
+  verificarRol(['UE']), // Corregido: pasar array en lugar de string
   (req, res) => {
       res.render('seleccion_lote', { user: req.user });
   }
@@ -193,7 +234,7 @@ router.get('/empaque',
 // Dashboard para Liberacion y limpieza
 router.get('/lineaLote', 
   verificarAuth,   
-  verificarRol('ULL'), 
+  verificarRol(['ULL']), // Corregido: pasar array en lugar de string
   (req, res) => {
       res.render('seleccion_lote', { user: req.user });
   }
@@ -202,7 +243,7 @@ router.get('/lineaLote',
 // Dashboard para Registro
 router.get('/Registros', 
   verificarAuth,   
-  verificarRol('UReg'), 
+  verificarRol(['UReg']), // Corregido: pasar array en lugar de string
   (req, res) => {
       res.render('dashboard_registros', { user: req.user });
   }
@@ -244,7 +285,6 @@ router.get('/sku/:skuId',
 );
 
 // Vista de gráficas (resumen)
-// Vista resumen con consulta SQL corregida
 router.get('/resumen', verificarAuth, verificarRol(['UAI', 'UA', 'UV']), async (req, res) => {
   try {
     // Consulta SQL sin referencias a deletedAt
@@ -288,7 +328,7 @@ router.get('/resumen', verificarAuth, verificarRol(['UAI', 'UA', 'UV']), async (
     }));
     res.render('resumen', { 
       user: req.user,
-      skuData: processedData // Importante: pasar skuData a la plantilla
+      skuData: processedData
     });
   } catch (error) {
     console.error('Error al cargar datos de resumen:', error);
@@ -326,5 +366,63 @@ router.get('/terminos',
       res.render('terminos', { user: req.user });
   }
 );
+
+router.post('/seleccionar-sku', verificarAuth, (req, res) => {
+  console.log('SKU seleccionado:', req.body.sku);
+  res.status(200).json({ ok: true });
+});
+
+// NUEVA RUTA - Para archivos basados en carpeta y SKU directamente
+router.get('/:carpeta/:sku', verificarAuth, async (req, res) => {
+  const { carpeta, sku } = req.params;
+  const user = req.user;
+  console.log(`Usuario ${user.userName} (${user.rol}) accediendo a ${carpeta}/${sku}`);
+  // Validar que el rol tenga acceso a la carpeta
+  let tieneAcceso = true;
+  if (carpeta === 'formato_empaque' && user.rol !== 'UE') {
+    console.warn(`¡Alerta! Usuario con rol ${user.rol} intentando acceder a formato_empaque`);
+    tieneAcceso = false;
+  } else if (carpeta === 'formato_registro' && user.rol !== 'UReg') {
+    tieneAcceso = false;
+  }
+  if (!tieneAcceso) {
+    console.warn(`Usuario con rol ${user.rol} intentó acceder a ${carpeta}/${sku}`);
+    return res.status(403).send('No tienes permiso para acceder a esta carpeta');
+  }
+  const viewsDir = path.join(__dirname, '..', 'views', carpeta);
+  try {
+    if (!fs.existsSync(viewsDir)) {
+      console.error(`La carpeta ${carpeta} no existe`);
+      return res.status(404).send(`Carpeta ${carpeta} no encontrada`);
+    }
+    const files = fs.readdirSync(viewsDir);
+    const fileMatch = files.find(f => f.includes(sku) && f.endsWith('.ejs'));
+    if (fileMatch) {
+      console.log(`Renderizando vista: ${carpeta}/${fileMatch.replace('.ejs', '')}`);
+      return res.render(`${carpeta}/${fileMatch.replace('.ejs', '')}`, { user: req.user });
+    } else {
+      console.error(`No se encontró archivo para SKU ${sku} en la carpeta ${carpeta}`);
+      return res.status(404).send(`Vista no encontrada para SKU ${sku} en ${carpeta}`);
+    }
+  } catch (err) {
+    console.error(`Error al buscar vista para SKU ${sku} en ${carpeta}:`, err);
+    return res.status(500).send('Error al buscar la vista');
+  }
+});
+
+// Redireccionamiento de la ruta antigua a la nueva (para compatibilidad)
+router.get('/vista/:formato/:sku', verificarAuth, (req, res) => {
+  const { formato, sku } = req.params;
+  console.log(`Redirigiendo de /vista/${formato}/${sku} a /${formato}/${sku}`);
+  res.redirect(`/${formato}/${sku}`);
+});
+
+// La ruta con tres parámetros ahora se maneja como caso especial
+// para admitir casos donde se pasa el nombre en la URL (opcional)
+router.get('/:carpeta/:nombre/:sku', verificarAuth, (req, res) => {
+  const { carpeta, sku } = req.params;
+  console.log(`Redirigiendo de /${carpeta}/${req.params.nombre}/${sku} a /${carpeta}/${sku}`);
+  res.redirect(`/${carpeta}/${sku}`);
+});
 
 module.exports = router;

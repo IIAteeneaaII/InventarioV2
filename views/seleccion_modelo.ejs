@@ -25,14 +25,13 @@
                      <input type="text" id="buscar-lote" class="search-input" placeholder="Buscar por SKU o nombre...">
                 </div>
 
-
                 <!-- Tabla de lotes -->
                 <div class="table-container">
                     <table class="lotes-table">
                         <thead>
                             <tr>
                                 <th>SKU</th>
-                                <th> Nombre del Producto</th>
+                                <th>Nombre del Producto</th>
                             </tr>
                         </thead>
                         <tbody id="tabla-lotes">
@@ -61,34 +60,42 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Cargar usuario
-            const usuario = localStorage.getItem('usuarioActual') || 'Usuario';
-            document.getElementById('username-display').textContent = usuario;
+            // Obtener datos del usuario del localStorage
+            let usuarioObj;
+            try {
+                usuarioObj = JSON.parse(localStorage.getItem('usuarioActual'));
+            } catch (e) {
+                usuarioObj = null;
+            }
+            
+            // Mostrar nombre de usuario
+            const nombreUsuario = usuarioObj?.nombre || usuarioObj?.userName || 'Usuario';
+            document.getElementById('username-display').textContent = nombreUsuario;
 
             // Datos de SKU-Nombre
             const skus = {
                 '69746': '4K M37',
-                '68360': '4K M36 Blanco',
+                '69360': '4K M36 Blanco', // Corregido: era 68360, pero en el EJS se ve 69360
                 '81809': '4K M36 Azul',
                 '72608': 'Extender AP',
                 '67278': 'Extender HUAWEI',
                 '80333': 'AP EH7',
-                '72488': '4K Alexa',
+                '73488': '4K Alexa', // Corregido: era 72488, pero en el EJS se ve 73488
                 '72676': 'V5 Small',
                 '66262': 'V5',
                 '69643': 'Fiberhome',
                 '69644': 'ZTE',
                 '76735': 'X6',
-                '74487': 'Fiberhome Extender',
+                '74497': 'Fiberhome Extender', // Corregido: era 74487, pero en el EJS se ve 74497
                 '69358': 'Soundbox'
             };
 
-                // Variables para controlar la selección
-                let loteSeleccionado = null;
-                const confirmarBtn = document.getElementById('confirmar-seleccion-btn');
-                const tablaLotes = document.getElementById('tabla-lotes');
-                const buscarInput = document.getElementById('buscar-lote');
-                const noResults = document.getElementById('no-results');
+            // Variables para controlar la selección
+            let loteSeleccionado = null;
+            const confirmarBtn = document.getElementById('confirmar-seleccion-btn');
+            const tablaLotes = document.getElementById('tabla-lotes');
+            const buscarInput = document.getElementById('buscar-lote');
+            const noResults = document.getElementById('no-results');
 
 
             // Función para renderizar los SKUs en la tabla
@@ -155,10 +162,7 @@
                 const resultados = {};
                 
                 for (const [sku, nombre] of Object.entries(skus)) {
-                    // CORRECCIÓN: Se agregó el paréntesis de cierre que faltaba
-                    if (sku.toLowerCase().includes(termino)) {
-                        resultados[sku] = nombre;
-                    } else if (nombre.toLowerCase().includes(termino)) {
+                    if (sku.toLowerCase().includes(termino) || nombre.toLowerCase().includes(termino)) {
                         resultados[sku] = nombre;
                     }
                 }
@@ -166,17 +170,16 @@
                 return resultados;
             }
 
-                // Evento de búsqueda al escribir
-                buscarInput.addEventListener('input', function() {
+            // Evento de búsqueda al escribir
+            buscarInput.addEventListener('input', function() {
                 const termino = this.value;
                 const resultados = buscarSKUs(termino);
                 renderizarSKUs(resultados);
-                });
+            });
 
             // Manejar confirmación final
             confirmarBtn.addEventListener('click', function() {
                 if (!loteSeleccionado) return;
-                
                 Swal.fire({
                     title: 'Confirmar Selección',
                     html: `¿Estás seguro de seleccionar el producto?<br><br>
@@ -194,7 +197,6 @@
                     if (result.isConfirmed) {
                         // Guardar selección en localStorage
                         localStorage.setItem('loteSeleccionado', JSON.stringify(loteSeleccionado));
-                        
                         Swal.fire({
                             title: '¡Selección Confirmada!',
                             html: `<div style="text-align: center;">
@@ -202,12 +204,11 @@
                                    <p style="font-size: 1.4rem; margin-top: 1rem;">SKU <b>${loteSeleccionado.sku}</b> (${loteSeleccionado.nombre})<br>confirmado correctamente</p>
                                    </div>`,
                             icon: 'success',
-                            confirmButtonText: 'Continuar', 
+                            confirmButtonText: 'Continuar',
                             customClass: {
                                 confirmButton: 'swal2-confirm'
                             }
                         }).then(() => {
-                            // Enviar el SKU seleccionado al backend mediante POST
                             fetch('/seleccionar-sku', {
                                 method: 'POST',
                                 headers: {
@@ -216,12 +217,33 @@
                                 body: JSON.stringify({
                                     sku: loteSeleccionado.sku
                                 })
-                            })
+                            }).then(response => {
+                                if (response.ok) {
+                                    // Determinar el formato correcto según el rol del usuario
+                                    let formato = 'formato_general';
+                                    if (usuarioObj && usuarioObj.rol) {
+                                        console.log('Dirigiendo según rol:', usuarioObj.rol);
+                                        if (usuarioObj.rol === 'UReg') {
+                                            formato = 'formato_registro';
+                                        } else if (usuarioObj.rol === 'UE') {
+                                            formato = 'formato_empaque';
+                                        } else {
+                                            formato = 'formato_general';
+                                        }
+                                    }
+                                    console.log(`Redirigiendo a: /${formato}/${loteSeleccionado.sku}`);
+                                    window.location.href = `/${formato}/${loteSeleccionado.sku}`;
+                                } else {
+                                    Swal.fire('Error', 'No se pudo seleccionar el SKU', 'error');
+                                }
+                            }).catch(error => {
+                                console.error('Error:', error);
+                                Swal.fire('Error', 'Problema de comunicación con el servidor', 'error');
+                            });
                         });
                     }
                 });
             });
-
             // Funcion para boton volver
             document.getElementById('volver-btn').addEventListener('click', function() {
                 window.history.back();
