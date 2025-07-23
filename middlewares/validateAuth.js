@@ -1,4 +1,4 @@
-const { body, validationResult } = require('express-validator');
+const { body, validationResult, check } = require('express-validator');
 
 // Dominios permitidos
 const allowedDomains = ['gmail.com', 'hotmail.com', 'yahoo.com', 'outlook.com'];
@@ -8,7 +8,7 @@ const domainRegex = new RegExp(`@(${allowedDomains.join('|').replace(/\./g, '\\.
 // VALIDACIÓN DE REGISTRO
 // =======================
 const validateRegister = [
-//Validar nombre
+  //Validar nombre
   body('nombre')
   .notEmpty().withMessage('El nombre es obligatorio')
   .isLength({ min: 2 }).withMessage('El nombre debe tener al menos 2 caracteres'),
@@ -55,17 +55,10 @@ const validateRegister = [
 // ===================
 // VALIDACIÓN DE LOGIN
 // ===================
+// CORRECCIÓN: Definir como constante en lugar de exportar directamente
 const validateLogin = [
-  body('email').notEmpty().withMessage('El correo es obligatorio'),
-  body('password').notEmpty().withMessage('La contraseña es obligatoria'),
-  (req, res, next) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      const mensajes = errors.array().map(err => err.msg).join(' - ');
-      return res.redirect(`/?error=${encodeURIComponent(mensajes)}`);
-    }
-    next();
-  }
+  check('email', 'El email es obligatorio').isEmail(),
+  check('password', 'La contraseña debe tener al menos 6 caracteres').isLength({ min: 6 })
 ];
 
 // ============================
@@ -83,8 +76,13 @@ const validateDeleteAcc = [
   }
 ];
 
+// Una sola exportación para todos los validadores
 module.exports = {
   validateRegister,
   validateLogin,
   validateDeleteAcc
 };
+
+// Para depuración (opcional)
+console.log('validateLogin is array:', Array.isArray(validateLogin));
+console.log('validateRegister is array:', Array.isArray(validateRegister));

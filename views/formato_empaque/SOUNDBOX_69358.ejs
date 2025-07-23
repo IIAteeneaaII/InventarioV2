@@ -91,6 +91,19 @@
 
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script>
+  // Cargar nombre de usuario desde localStorage
+  document.addEventListener('DOMContentLoaded', function() {
+    try {
+      const usuarioJSON = localStorage.getItem('usuarioActual');
+      if (usuarioJSON) {
+        const usuario = JSON.parse(usuarioJSON);
+        document.getElementById('username-display').textContent = usuario.userName || usuario.nombre || 'Usuario';
+      }
+    } catch (e) {
+      console.error('Error al cargar datos de usuario:', e);
+    }
+  });
+
   // Función para descargar la tabla en formato .xls
   document.getElementById("descargar-btn").addEventListener("click", function () {
     const tabla = document.querySelector(".registros-table");
@@ -100,7 +113,6 @@
     }
 
     const tablaHTML = tabla.outerHTML.replace(/ /g, '%20');
-
     const nombreArchivo = 'Empaque_Soundbox.xls';
 
     const enlaceDescarga = document.createElement('a');
@@ -115,6 +127,27 @@
   // Lógica de botón de regreso
   document.getElementById("volver-btn").addEventListener("click", function () {
     window.history.back();
+  });
+
+  // Cerrar sesión
+  document.getElementById("logout-icon").addEventListener("click", function() {
+    Swal.fire({
+      title: '¿Cerrar sesión?',
+      text: "¿Estás seguro que deseas cerrar la sesión?",
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Sí, salir',
+      cancelButtonText: 'Cancelar'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        // Limpiar localStorage y redirigir al login
+        localStorage.removeItem('usuarioActual');
+        localStorage.removeItem('token');
+        window.location.href = '/';
+      }
+    });
   });
   </script>
 </body>
