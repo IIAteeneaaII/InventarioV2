@@ -23,7 +23,6 @@
         <div class="user-details">
           <div class="username">Administrador</div>
           <div class="user-role">Rol: UAI</div>
-          <button class="btn-status" onclick="window.location.href='/resumen'">Consulta de Estatus</button>
         </div>
       </div>
     </div>
@@ -46,6 +45,16 @@
         <div class="input-group">
           <label for="email">Email:</label>
           <input type="email" id="email" name="email" value="<%= usuario.email %>" required />
+        </div>
+
+        <div class="input-group">
+          <label for="nuevaContrasena">Nueva contraseña:</label>
+          <input type="password" id="nuevaContrasena" name="nuevaContrasena" minlength="8" maxlength="12" placeholder="Dejar en blanco para no cambiar" />
+        </div>
+
+        <div class="input-group">
+          <label for="confirmarContrasena">Confirmar nueva contraseña:</label>
+          <input type="password" id="confirmarContrasena" name="confirmarContrasena" minlength="8" maxlength="12" placeholder="Confirmar contraseña" />
         </div>
 
         <div class="input-group">

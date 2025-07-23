@@ -25,7 +25,7 @@ exports.register = async (req, res) => {
     });
     await prisma.log.create({
       data: {
-        usuarioId: req.user.id,
+        userId: req.user.id,
         accion: 'crear',
         entidad: 'Usuario',
         detalle: `Creó usuario ${email}`
@@ -63,18 +63,22 @@ exports.listarUsuarios = async (req, res) => {
   }
 };
 
-// Actualizar usuario
 exports.actualizarUsuario = async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const { nombre, email, rol, activo } = req.body;
-    if (!nombre || !email || !rol) {
+    // 👇 Ahora recibimos también userName y nuevaContrasena
+    const { nombre, userName, email, rol, activo, nuevaContrasena } = req.body;
+
+    // Validar campos obligatorios
+    if (!nombre || !userName || !email || !rol) {
       return res.status(400).json({ error: 'Faltan datos obligatorios' });
     }
+
     const usuarioExistente = await prisma.user.findUnique({ where: { id } });
     if (!usuarioExistente) {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
+
     // Valida email único
     const emailEnUso = await prisma.user.findFirst({
       where: { email, NOT: { id } }
@@ -82,21 +86,44 @@ exports.actualizarUsuario = async (req, res) => {
     if (emailEnUso) {
       return res.status(409).json({ error: 'El email ya está registrado por otro usuario' });
     }
+
+    // Valida userName único
+    const userNameEnUso = await prisma.user.findFirst({
+      where: { userName, NOT: { id } }
+    });
+    if (userNameEnUso) {
+      return res.status(409).json({ error: 'El nombre de usuario ya está registrado por otro usuario' });
+    }
+
+    // Construir objeto de actualización
+    const updateData = { nombre, userName, email, rol, activo };
+
+    // Si hay nueva contraseña, hashearla y agregarla
+    if (nuevaContrasena && nuevaContrasena.length >= 8 && nuevaContrasena.length <= 12) {
+      const hashedPassword = await bcrypt.hash(nuevaContrasena, 10);
+      updateData.password = hashedPassword;
+    }
+
     const usuarioActualizado = await prisma.user.update({
       where: { id },
-      data: { nombre, email, rol, activo }
+      data: updateData
     });
+
+    // Log (corrige a userId)
     await prisma.log.create({
       data: {
-        usuarioId: req.user.id,
+        userId: req.user.id,
         accion: 'editar',
         entidad: 'Usuario',
         detalle: `Actualizó usuario ID ${id}`
       }
     });
+
+    // Respuesta
     res.json({
       id: usuarioActualizado.id,
       nombre: usuarioActualizado.nombre,
+      userName: usuarioActualizado.userName,
       email: usuarioActualizado.email,
       rol: usuarioActualizado.rol,
       activo: usuarioActualizado.activo
@@ -121,7 +148,7 @@ exports.eliminarUsuario = async (req, res) => {
     const usuarioEliminado = await prisma.user.delete({ where: { id } });
     await prisma.log.create({
       data: {
-        usuarioId: req.user.id,
+        userId: req.user.id,
         accion: 'eliminar',
         entidad: 'Usuario',
         detalle: `Eliminó usuario ID ${id}`
@@ -164,7 +191,7 @@ exports.toggleEstadoUsuario = async (req, res) => {
     });
     await prisma.log.create({
       data: {
-        usuarioId: req.user.id,
+        userId: req.user.id,
         accion: nuevoEstado ? 'habilitar' : 'deshabilitar',
         entidad: 'Usuario',
         detalle: `${nuevoEstado ? 'Habilitó' : 'Deshabilitó'} usuario ID ${userId}`
