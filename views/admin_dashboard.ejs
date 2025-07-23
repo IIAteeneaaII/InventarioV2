@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -24,10 +23,9 @@
         <div class="user-details">
           <div class="username">Administrador</div>
           <div class="user-role">Rol: UAI</div>
-<button class="btn-status" onclick="window.location.href='/resumen'">
-  Consulta de Estatus
-</button>
-
+          <button class="btn-status" onclick="window.location.href='/resumen'">
+            Consulta de Estatus
+          </button>
         </div>
       </div>
     </div>
@@ -102,11 +100,24 @@
                   <td><%= usuario.nombre %></td>
                   <td><%= usuario.email %></td>
                   <td><%= usuario.rol %></td>
-                  <td>
-                      <a href="/editarusuario/<%= usuario.id %>" class="btn-editar-link">
-                    ✎ Editar
-                      </a>
-                    <button class="btn-eliminar" data-id="<%= usuario.id %>">🗑 Eliminar</button>
+                  <td class="acciones-cell">
+                    <a href="/editarusuario/<%= usuario.id %>" class="btn btn-secondary btn-editar-link" title="Editar">
+                      <i class="fas fa-edit"></i>
+                    </a>
+                    <button class="btn btn-eliminar acciones-btn" data-id="<%= usuario.id %>" title="Eliminar">
+                      <i class="fas fa-trash-alt"></i>
+                    </button>
+                    <!-- Toggle activar/desactivar tipo switch -->
+                    <label class="switch-toggle" title="Activar/Desactivar cuenta">
+                      <input 
+                        type="checkbox" 
+                        class="toggle-activo" 
+                        data-id="<%= usuario.id %>" 
+                        <%= usuario.activo ? 'checked' : '' %>
+                      />
+                      <span class="slider-toggle"></span>
+                    </label>
+                    <span class="estado-texto"><%= usuario.activo ? "Activo" : "Inactivo" %></span>
                   </td>
                 </tr>
               <% }); %>
@@ -151,6 +162,15 @@
             <option value="UEN">Ensamble (UEN)</option>
           </select>
         </div>
+        <!-- Toggle switch en el modal -->
+        <div class="input-group">
+          <label for="editarActivo">Cuenta activa:</label>
+          <label class="switch-toggle">
+            <input type="checkbox" id="editarActivo" name="activo" />
+            <span class="slider-toggle"></span>
+          </label>
+          <span id="editarEstadoTexto" class="estado-texto">Activo</span>
+        </div>
         <div class="modal-buttons">
           <button type="submit" class="btn btn-primary">Guardar</button>
           <button type="button" class="btn btn-secondary" onclick="cerrarModal()">✕ Cancelar</button>
@@ -165,5 +185,6 @@
   <script src="/js/swalConfig.js"></script>
   <script src="/js/cerrarsesion.js"></script>
   <script src="/js/registro.js"></script>
+  <script src="/js/admin.js"></script>
 </body>
 </html>
