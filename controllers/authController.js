@@ -105,51 +105,32 @@ exports.logout = (req, res) => { /* Tu implementación existente */ };
 exports.recoverPassword = async (req, res) => { /* Tu implementación existente */ };
 exports.resetPassword = async (req, res) => { /* Tu implementación existente */ };
 
-// VERIFICACIÓN DE AUTENTICACIÓN - Versión mejorada con más logs
+// Versión limpia del middleware verificarAuth
 exports.verificarAuth = (req, res, next) => {
-  console.log('[VERIFICAR AUTH] Iniciando verificación de autenticación');
-  // 1. Verificar si existe token en las cookies
   const token = req.cookies?.token;
-  console.log('[VERIFICAR AUTH] ¿Token presente?:', !!token);
   if (!token) {
-    console.log('[VERIFICAR AUTH] No hay token, redirigiendo a login');
-    return res.status(401).redirect('/');
+    return res.redirect('/');
   }
   try {
-    // 2. Decodificar y verificar el token
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'supersecret');
-    console.log('[VERIFICAR AUTH] Token válido para:', decoded.userName);
-    // 3. Añadir información del usuario a la solicitud
-    req.user = {
-      id: decoded.id,
-      email: decoded.email,
-      userName: decoded.userName,
-      nombre: decoded.nombre || decoded.userName,
-      rol: decoded.rol
-    };
-    console.log('[VERIFICAR AUTH] Usuario autenticado:', req.user.userName, '('+req.user.rol+')');
+    req.user = decoded;
     next();
   } catch (err) {
-    console.error('[VERIFICAR AUTH] Error al verificar token:', err.message);
-    // 4. Eliminar token inválido y redirigir
+    console.error('Error al verificar token:', err.message);
     res.clearCookie('token');
-    return res.status(401).redirect('/?error=sesion_expirada');
+    return res.redirect('/');
   }
 };
 
-// VERIFICACIÓN DE ROL - Versión mejorada con más logs
+// Versión limpia del middleware verificarRol
 exports.verificarRol = (roles) => (req, res, next) => {
-  console.log(`[VERIFICAR ROL] Usuario: ${req.user?.userName}, Rol: ${req.user?.rol}, Roles permitidos: ${roles.join(', ')}`);
   if (!req.user) {
-    console.log('[VERIFICAR ROL] No hay usuario en la solicitud');
-    return res.status(401).redirect('/');
+    return res.redirect('/');
   }
   if (Array.isArray(roles) && roles.includes(req.user.rol)) {
-    console.log(`[VERIFICAR ROL] Acceso permitido para ${req.user.userName} con rol ${req.user.rol}`);
     next();
   } else {
-    console.log(`[VERIFICAR ROL] Acceso denegado para ${req.user.userName} con rol ${req.user.rol}`);
-    return res.status(403).redirect('/');
+    return res.redirect('/');
   }
 };
 

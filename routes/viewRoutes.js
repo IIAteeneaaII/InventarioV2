@@ -1,6 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const jwt = require('jsonwebtoken');
 const { verificarAuth, verificarRol } = require('../controllers/authController');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
@@ -8,36 +7,6 @@ const adminController = require('../controllers/adminController');
 const { vistaEditarUsuario } = require('../controllers/adminController');
 const fs = require('fs');
 const path = require('path');
-
-// [DEBUG] Middleware global para loguear cada acceso a rutas de este router
-router.use((req, res, next) => {
-  console.log(`[DEBUG RUTAS] Acceso a: ${req.path}, método: ${req.method}, usuario: ${req.user?.userName || 'no autenticado'}`);
-  next();
-});
-
-// Ruta de diagnóstico de autenticación (MOVIDA AQUÍ DESPUÉS DE INICIALIZAR ROUTER)
-router.get('/diagnostico', (req, res) => {
-  const token = req.cookies?.token;
-  let decoded = null;
-  if (token) {
-    try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET || 'supersecret');
-    } catch (err) {
-      console.error('Error al verificar token:', err.message);
-    }
-  }
-  res.send(`
-    <h1>Diagnóstico de Autenticación</h1>
-    <p>Esta página muestra información sobre la autenticación actual.</p>
-    <h2>Estado del token:</h2>
-    <p>${token ? '✅ Token presente' : '❌ No hay token'}</p>
-    <h2>Información decodificada:</h2>
-    <pre>${decoded ? JSON.stringify(decoded, null, 2) : 'No hay información'}</pre>
-    <h2>Información de req.user:</h2>
-    <pre>${req.user ? JSON.stringify(req.user, null, 2) : 'No hay req.user'}</pre>
-    <p><a href="/">Volver al inicio</a></p>
-  `);
-});
 
 // Ruta basada en BD - Si utilizas la tabla VistaPorSKU
 router.get('/vista/:skuCode', verificarAuth, async (req, res) => {
@@ -141,20 +110,19 @@ router.get('/resumen_totales', verificarAuth, verificarRol(['UAI']), async (req,
 });
 
 // Dashboard para rol registro
+router.get('/registro', 
+  verificarAuth,   
+  verificarRol(['UReg']), 
+  (req, res) => {
+      res.render('registro_lote', { user: req.user });
+  }
+);
 
-
-
-// Ruta robusta con logs adicionales
+// Ruta principal para selección de lote
 router.get('/seleccionlote', 
   verificarAuth,
-  (req, res, next) => {
-    // Log detallado antes de verificar rol
-    console.log(`Intento de acceso: ${req.user?.userName} (${req.user?.rol}) -> /seleccionlote`);
-    next();
-  },
   verificarRol(['UA', 'UV', 'UTI', 'UR', 'UC', 'UE', 'ULL','UReg']),
   (req, res) => {
-    console.log(`Acceso autorizado: ${req.user.userName} (${req.user.rol}) -> /seleccionlote`);
     res.render('seleccion_modelo', { user: req.user });
   }
 );
@@ -164,7 +132,6 @@ router.get('/seleccionar_modelo',
   verificarAuth,
   verificarRol(['UA', 'UV', 'UTI', 'UR', 'UC', 'UE', 'ULL','UReg']),
   (req, res) => {
-    console.log(`Redirigiendo: ${req.user.userName} desde /seleccionar_modelo a /seleccionlote`);
     res.redirect('/seleccionlote');
   }
 );
@@ -172,7 +139,7 @@ router.get('/seleccionar_modelo',
 // Dashboard para rol almacen
 router.get('/almacen', 
   verificarAuth,   
-  verificarRol(['UA']), // Corregido: pasar array en lugar de string
+  verificarRol(['UA']),
   (req, res) => {
       res.render('dashboard_almacen', { user: req.user });
   }
@@ -181,7 +148,7 @@ router.get('/almacen',
 // Dashboard para rol visualizador
 router.get('/nuevos_usuarios', 
   verificarAuth,   
-  verificarRol(['UV']), // Corregido: pasar array en lugar de string
+  verificarRol(['UV']),
   (req, res) => {
       res.render('nuevos_usuarios', { user: req.user });
   }
@@ -189,7 +156,7 @@ router.get('/nuevos_usuarios',
 
 // Dashboard para redireccionamiento a la vista de crear lote
 router.get('/crearlote', 
-  verificarAuth, // Añadido verificarAuth por coherencia
+  verificarAuth,
   (req, res) => {
       res.render('asignacion_lote', { user: req.user });
   }
@@ -198,7 +165,7 @@ router.get('/crearlote',
 // Dashboard para rol Test inicial
 router.get('/testini', 
   verificarAuth,   
-  verificarRol(['UTI']), // Corregido: pasar array en lugar de string
+  verificarRol(['UTI']),
   (req, res) => {
       res.render('seleccion_lote', { user: req.user });
   }
@@ -207,7 +174,7 @@ router.get('/testini',
 // Dashboard para rol retest
 router.get('/retest', 
   verificarAuth,   
-  verificarRol(['UR']), // Corregido: pasar array en lugar de string
+  verificarRol(['UR']),
   (req, res) => {
       res.render('seleccion_lote', { user: req.user });
   }
@@ -216,7 +183,7 @@ router.get('/retest',
 // Dashboard para rol Cosmetica
 router.get('/cosmetica', 
   verificarAuth,   
-  verificarRol(['UC']), // Corregido: pasar array en lugar de string
+  verificarRol(['UC']),
   (req, res) => {
       res.render('seleccion_lote', { user: req.user });
   }
@@ -225,7 +192,7 @@ router.get('/cosmetica',
 // Dashboard para rol Empaque
 router.get('/empaque', 
   verificarAuth,   
-  verificarRol(['UE']), // Corregido: pasar array en lugar de string
+  verificarRol(['UE']),
   (req, res) => {
       res.render('seleccion_lote', { user: req.user });
   }
@@ -234,7 +201,7 @@ router.get('/empaque',
 // Dashboard para Liberacion y limpieza
 router.get('/lineaLote', 
   verificarAuth,   
-  verificarRol(['ULL']), // Corregido: pasar array en lugar de string
+  verificarRol(['ULL']),
   (req, res) => {
       res.render('seleccion_lote', { user: req.user });
   }
@@ -243,7 +210,7 @@ router.get('/lineaLote',
 // Dashboard para Registro
 router.get('/Registros', 
   verificarAuth,   
-  verificarRol(['UReg']), // Corregido: pasar array en lugar de string
+  verificarRol(['UReg']),
   (req, res) => {
       res.render('dashboard_registros', { user: req.user });
   }
