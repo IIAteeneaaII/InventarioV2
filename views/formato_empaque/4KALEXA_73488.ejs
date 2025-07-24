@@ -10,15 +10,11 @@
 </head>
 <body>
   <div class="app-container">
-<div class="top-right">
-  <img src="/img/usuario.webp" alt="Usuario" class="user-icon" />
-  <div class="username" id="username-display"><%= user.userName %></div>
-  <div class="user-info">
-    <div class="logout-container">
-      <i class="fas fa-right-from-bracket logout-icon" id="logout-icon" title="Cerrar sesión"></i>
+    <div class="top-right">
+      <img src="/img/usuario.webp" alt="Usuario" class="user-icon" />
+      <div class="username" id="username-display">Usuario</div>
+      <img src="/img/logout.png" alt="Cerrar sesión" class="logout-icon" id="logout-icon" />
     </div>
-  </div>
-</div>
 
     <div class="form-section">
       <h1>4K ALEXA - 73488</h1>
@@ -30,11 +26,6 @@
       <div class="form-group">
         <label class="required">S/N</label>
         <input type="text" id="sn-input" placeholder="Ingrese el número de serie" />
-      </div>
-
-      <div class="form-group">
-        <label>Reparaciones</label>
-        <input type="text" id="reparaciones-input" placeholder="Ingrese código de reparación" />
       </div>
 
       <div class="form-group">
@@ -57,18 +48,17 @@
       </button>
 
       <div class="acciones-container">
-        
-
         <button class="btn-descargar" id="descargar-btn">
           <i class="fas fa-download"></i> Descargar
         </button>
       </div>
 
-      <div class="volver-container">
-        <button id="volver-btn" class="btn-volver">
-          <i class="fas fa-arrow-left"></i> Volver
-        </button>
-      </div>
+      <!-- Botón volver al borde inferior izquierdo -->
+<div class="volver-container">
+  <button id="volver-btn" class="btn-volver">
+    <i class="fas fa-arrow-left"></i> Volver
+  </button>
+</div>
     </div>
 
     <div class="table-section">
@@ -78,6 +68,7 @@
           <thead>
             <tr>
               <th>ID (Usuario)</th>
+              <th>N/S</th>
               <th>Fecha</th>
               <th>Registro</th>
               <th>Tipo</th>
@@ -91,34 +82,27 @@
     </div>
   </div>
 
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script src="/js/cerrarsesion.js"></script>
-<script>
-  // Función para descargar la tabla en formato .xls
-  document.getElementById("descargar-btn").addEventListener("click", function () {
-    const tabla = document.querySelector(".registros-table");
-    if (!tabla) {
-      Swal.fire("Error", "No se encontró la tabla de registros.", "error");
-      return;
-    }
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script>
+    document.getElementById("descargar-btn").addEventListener("click", function () {
+      const tabla = document.querySelector(".registros-table");
+      if (!tabla) {
+        Swal.fire("Error", "No se encontró la tabla de registros.", "error");
+        return;
+      }
+      const tablaHTML = tabla.outerHTML.replace(/ /g, '%20');
+      const nombreArchivo = 'Empaque_4K_Alexa.xls';
+      const enlaceDescarga = document.createElement('a');
+      enlaceDescarga.href = 'data:application/vnd.ms-excel,' + tablaHTML;
+      enlaceDescarga.download = nombreArchivo;
+      document.body.appendChild(enlaceDescarga);
+      enlaceDescarga.click();
+      document.body.removeChild(enlaceDescarga);
+    });
 
-    const tablaHTML = tabla.outerHTML.replace(/ /g, '%20');
-
-    const nombreArchivo = 'Empaque_4K Alexa.xls';
-
-    const enlaceDescarga = document.createElement('a');
-    enlaceDescarga.href = 'data:application/vnd.ms-excel,' + tablaHTML;
-    enlaceDescarga.download = nombreArchivo;
-
-    document.body.appendChild(enlaceDescarga);
-    enlaceDescarga.click();
-    document.body.removeChild(enlaceDescarga);
-  });
-
-  // Lógica de botón de regreso
-  document.getElementById("volver-btn").addEventListener("click", function () {
-    window.history.back();
-  });
-</script>
+    document.getElementById("volver-btn").addEventListener("click", function () {
+      window.history.back();
+    });
+  </script>
 </body>
 </html>
