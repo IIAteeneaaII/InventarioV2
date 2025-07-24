@@ -7,19 +7,37 @@
     <link rel="stylesheet" href="/css/formato-b.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <style>
+        .user-info {
+            display: flex;
+            align-items: center;
+        }
+        .logout-container {
+            margin-left: 10px;
+        }
+        .fa-right-from-bracket {
+            color: #fff;
+            font-size: 20px;
+            cursor: pointer;
+        }
+    </style>
 </head>
 <body>
     <div class="app-container">
         <!-- Sección usuario -->
         <div class="top-right">
-            <img src="/img/usuario.webp" alt="Usuario" class="user-icon">
-            <div class="username" id="username-display">Usuario</div>
-            <img src="/img/logout.png" alt="Cerrar sesión" class="logout-icon" id="logout-icon">
+            <img src="/img/usuario.webp" alt="Usuario" class="user-icon" />
+            <div class="username" id="username-display"><%= user.userName %></div>
+            <div class="user-info">
+                <div class="logout-container">
+                    <i class="fas fa-right-from-bracket logout-icon" id="logout-icon" title="Cerrar sesión"></i>
+                </div>
+            </div>
         </div>
 
         <!-- Sección del formulario -->
         <div class="form-section">
-            <h1>FIBER EXTENDER - 74497</h1>
+            <h1>FIBERHOME EXTENDER - 74497</h1>
 
             <div class="form-group">
                 <label>Escanear:</label>
@@ -59,7 +77,7 @@
             </button>
 
             <!-- Botón Volver -->
-            <button id="volver-btn" class="btn-volver">
+            <button id="volver-btn" class="btn-secondary">
                 <i class="fas fa-arrow-left"></i> Volver
             </button>
         </div>
@@ -86,6 +104,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="/js/cerrarsesion.js"></script>
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('volver-btn').addEventListener('click', () => {
@@ -209,11 +228,6 @@
         renderizarRegistros();
         snInput.focus();
     });
-
-  // Lógica de botón de regreso
-  document.getElementById("volver-btn").addEventListener("click", function () {
-    window.history.back();
-  });
     </script>
 </body>
 </html>
