@@ -23,7 +23,8 @@ router.delete('/usuarios/:id', adminController.eliminarUsuario);
 router.post('/usuarios/:id/eliminar', adminController.eliminarUsuarioSoft);
 
 // Activar/desactivar usuario
-router.patch('/usuarios/:id/toggle', adminController.toggleEstadoUsuario);
+
+router.patch('/usuarios/:id/toggle', verificarAuth, verificarRol(['UAI','UA','UV']), adminController.toggleEstadoUsuario);
 
 // Ver logs
 router.get('/logs', adminController.verLogs);
