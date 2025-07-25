@@ -415,6 +415,15 @@ router.post('/crearusuario',
   adminController.register
 );
 
+// Crear nuevos usuarios
+router.get('/adminventario', 
+  verificarAuth,   
+  verificarRol(['UAI', 'UA', 'UV']),
+  (req, res) => {
+      res.render('admin_dashboard', { user: req.user });
+  }
+);
+
 // Listar usuarios (para admin y roles autorizados)
 router.get('/listarusuarios',
   verificarAuth,
