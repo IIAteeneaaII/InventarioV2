@@ -471,3 +471,57 @@
 .switch-toggle input:checked + .slider-toggle:before {
   transform: translateX(22px);
 }
+
+.dashboard-container {
+  max-width: 700px;
+  margin: 60px auto;
+  padding: 32px 24px 40px 24px;
+  background: #f5f8fa;
+  border-radius: 24px;
+  box-shadow: 0 4px 32px #0002;
+  text-align: center;
+}
+.menu-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 32px;
+  margin-top: 36px;
+}
+.menu-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  background: #4e8c8f;
+  color: #fff;
+  text-decoration: none;
+  padding: 36px 12px 28px 12px;
+  border-radius: 18px;
+  font-size: 1.16rem;
+  font-weight: 500;
+  box-shadow: 0 3px 12px #173c7230;
+  transition: background 0.2s, transform 0.2s, color 0.2s;
+  position: relative;
+}
+.menu-btn i {
+  font-size: 2.4rem;
+  margin-bottom: 10px;
+  color: #2c3e50;
+  transition: color 0.2s;
+}
+.menu-btn:hover {
+  background: #66b3b7;
+  color: #2c3e50;
+  transform: translateY(-6px) scale(1.045);
+}
+.menu-btn:hover i {
+  color: #fff;
+}
+@media (max-width: 600px) {
+  .dashboard-container {
+    padding: 16px 6px 24px 6px;
+  }
+  .menu-grid {
+    gap: 18px;
+  }
+}
