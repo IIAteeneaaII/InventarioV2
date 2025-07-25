@@ -87,14 +87,6 @@ app.use('/api/inicio', principalScrRoutes);
 // --- Vistas (dashboard, por rol, etc) ---
 app.use('/', viewRoutes);
 
-// --- Página dashboard protegida ---
-app.get('/dashboard', (req, res) => {
-  if (req.user.rol === 'UAI') {
-    return res.redirect('/adminventario');
-  }
-  res.render('dashboard', { usuario: req.user });
-});
-
 // --- VISTAS SECUNDARIAS PROTEGIDAS (puedes adaptarlas según necesites) ---
 app.get('/EliminarCuenta', (req, res) => res.render('eliminarCuenta'));
 app.get('/EliminarCuenta1', (req, res) => res.render('eliminarCuenta1'));
