@@ -56,11 +56,11 @@ router.get('/editarusuario/:id',
 );
 
 // Dashboard para rol Admin inventario
-router.get('/adminventario', 
-  verificarAuth, 
-  verificarRol(['UAI', 'UA', 'UV']), 
-  adminController.listarUsuarios
-);
+//router.get('/adminventario', 
+//  verificarAuth, 
+//  verificarRol(['UAI', 'UA', 'UV']), 
+//  adminController.listarUsuarios
+//);
 
 // Tabla de contabilidad por SKU
 router.get('/resumen_totales', verificarAuth, verificarRol(['UAI']), async (req, res) => {
@@ -391,5 +391,36 @@ router.get('/:carpeta/:nombre/:sku', verificarAuth, (req, res) => {
   console.log(`Redirigiendo de /${carpeta}/${req.params.nombre}/${sku} a /${carpeta}/${sku}`);
   res.redirect(`/${carpeta}/${sku}`);
 });
+
+// búsqueda de NS
+router.get('/ns', 
+  verificarAuth,   
+  verificarRol(['UAI', 'UA', 'UV']),
+  (req, res) => {
+      res.render('ns', { user: req.user });
+  }
+);
+
+// Crear nuevos usuarios
+router.get('/crearusuario', 
+  verificarAuth,   
+  verificarRol(['UAI', 'UA', 'UV']),
+  (req, res) => {
+      res.render('crearusuario', { user: req.user });
+  }
+);
+router.post('/crearusuario', 
+  verificarAuth,   
+  verificarRol(['UAI', 'UA', 'UV']),
+  adminController.register
+);
+
+// Listar usuarios (para admin y roles autorizados)
+router.get('/listarusuarios',
+  verificarAuth,
+  verificarRol(['UAI', 'UA', 'UV']),
+  adminController.listarUsuarios
+);
+
 
 module.exports = router;

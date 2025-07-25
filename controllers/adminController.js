@@ -56,7 +56,7 @@ exports.listarUsuarios = async (req, res) => {
       where: { deletedAt: null, activo: true }, // Solo usuarios activos y no eliminados
       select: { id: true, nombre: true, userName: true, email: true, rol: true }
     });
-    res.render('admin_dashboard', { usuarios });
+    res.render('listarusuarios', { usuarios });
   } catch (error) {
     console.error('Error al obtener usuarios:', error);
     res.status(500).send('Error al cargar la vista de usuarios');
