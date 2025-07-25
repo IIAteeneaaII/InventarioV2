@@ -37,6 +37,19 @@ body {
     overflow-y: auto;
 }
 
+        .user-info {
+            display: flex;
+            align-items: center;
+        }
+        .logout-container {
+            margin-left: 10px;
+        }
+        .fa-right-from-bracket {
+            color: #fff;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
 h1 {
     color: #333;
     font-size: 1.5em;
@@ -93,27 +106,6 @@ input[type="text"]:focus, select:focus {
     background-color: #45a049;
 }
 
-.btn-cambio-lote {
-    width: 100%;
-    padding: 12px;
-    background-color: #e74c3c;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 1em;
-    margin-top: 10px;
-    transition: background-color 0.3s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-}
-
-.btn-cambio-lote:hover {
-    background-color: #c0392b;
-}
-
 .btn-volver {
     background-color: #6c757d;
     color: white;
@@ -131,7 +123,7 @@ input[type="text"]:focus, select:focus {
 
 #volver-btn {
     display: inline-block;
-    margin-top: 20px;
+    margin-top: 90px;
     background-color: #6c757d;
     color: white;
     border: none;
