@@ -20,10 +20,11 @@
           <i class="fas fa-right-from-bracket logout-icon" onclick="cerrarSesion()" title="Cerrar sesión"></i>
         </div>
         <div class="user-icon">A</div>
-        <div class="user-details">
-          <div class="username">Administrador</div>
-          <div class="user-role">Rol: UAI</div>
-        </div>
+<div class="user-header" style="justify-content: flex-end;">
+  <button class="btn btn-primary" onclick="window.location.href='/adminventario'">
+    <i class="fas fa-arrow-left"></i> Regresar al inicio
+  </button>
+</div>
       </div>
     </div>
 
@@ -73,9 +74,6 @@
         </div>
         <button type="submit" class="btn btn-primary btn-submit">
           <span class="btn-icon">+</span> Crear usuario
-        </button>
-        <button type="button" class="btn btn-secondary btn-submit" onclick="window.location.href='/adminventario'">
-          <i class="fas fa-arrow-left btn-icon"></i> Regresar al inicio
         </button>
       </form>
     </section>

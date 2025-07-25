@@ -20,18 +20,24 @@
           <i class="fas fa-right-from-bracket logout-icon" onclick="cerrarSesion()" title="Cerrar sesión"></i>
         </div>
         <div class="user-icon">A</div>
-        <div class="user-details">
-          <div class="username">Administrador</div>
-          <div class="user-role">Rol: <%= user.rol === 'UAI' ? 'Administrador' : user.rol === 'UA' ? 'Almacén' : user.rol === 'UV' ? 'Visualizador' : user.rol %></div>
-        </div>
+<div class="user-header" style="justify-content: flex-end;">
+  <button class="btn btn-primary" onclick="window.location.href='/adminventario'">
+    <i class="fas fa-arrow-left"></i> Regresar al inicio
+  </button>
+</div>
+
       </div>
     </div>
 
-    <section id="buscarUsuarios" class="form-section">
-      <div class="buscador-row">
-        <input type="text" id="buscadorUsuario" class="input-busqueda" placeholder="Buscar usuario por nombre, email o usuario..." />
-        <select id="filtroRol" class="input-select">
-          <option value="">Todas las áreas</option>
+<div class="buscador-row">
+  <div class="busqueda-input-wrap">
+    <input type="text" id="buscadorUsuario" class="input-busqueda" placeholder="Buscar usuario por nombre, email o usuario..." />
+    <button type="button" class="btn btn-secondary btn-busqueda-limpiar" onclick="resetBusqueda()">
+      <i class="fas fa-times"></i> Borrar
+    </button>
+  </div>
+  <select id="filtroRol" class="input-select">
+    <option value="">Todas las áreas</option>
           <option value="UAI">Administrador Inventario</option>
           <option value="UA">Usuario Almacén</option>
           <option value="UV">Visualizador</option>
@@ -42,12 +48,6 @@
           <option value="UE">Empaque</option>
           <option value="ULL">Liberación/Limpieza</option>
         </select>
-        <button type="button" class="btn btn-secondary" onclick="resetBusqueda()">
-          <i class="fas fa-times"></i> Limpiar
-        </button>
-        <button type="button" class="btn btn-primary" onclick="window.location.href='/adminventario'">
-          <i class="fas fa-arrow-left"></i> Regresar al inicio
-        </button>
       </div>
       <div class="table-container">
         <table class="usuarios-table">
@@ -117,11 +117,14 @@
       </div>
     </section>
   </div>
+  <script src="https://cdn.jsdelivr.net/npm/just-validate@4.3.0/dist/just-validate.production.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="/js/swalConfig.js"></script>
   <script src="/js/cerrarsesion.js"></script>
+  <script src="/js/admin.js"></script>
   <script>
     // --- Constantes para paginación y filtros
-    const filasPorPagina = 20;
+    const filasPorPagina = 10;
     let paginaActual = 1;
     let usuarios = [];
     // Cargar los usuarios del backend (la variable EJS "usuarios")
