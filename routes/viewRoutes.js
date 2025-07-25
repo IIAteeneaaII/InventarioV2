@@ -431,5 +431,45 @@ router.get('/listarusuarios',
   adminController.listarUsuarios
 );
 
+router.get('/historial', 
+  verificarAuth,
+  verificarRol(['UAI', 'UA', 'UV']),
+  async (req, res) => {
+    const { sn } = req.query;
+
+    if (!sn) {
+      return res.render('historialVisual', {
+        user: req.user,
+        sn: null,
+        fasesRealizadas: []
+      });
+    }
+
+    try {
+      const registros = await prisma.registro.findMany({
+        where: { sn },
+        orderBy: { createdAt: 'asc' },
+        select: { fase: true }
+      });
+
+      const fasesRealizadas = registros.map(r => r.fase);
+
+      res.render('historialVisual', {
+        user: req.user,
+        sn,
+        fasesRealizadas
+      });
+    } catch (error) {
+      console.error('Error al consultar historial:', error);
+      res.status(500).render('historialVisual', {
+        user: req.user,
+        sn,
+        fasesRealizadas: [],
+        error: 'Error al cargar historial'
+      });
+    }
+  }
+);
+
 
 module.exports = router;
