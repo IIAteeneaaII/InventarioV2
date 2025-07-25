@@ -525,3 +525,14 @@
     gap: 18px;
   }
 }
+
+.busqueda-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+}
+.btn-busqueda-limpiar {
+  padding: 7px 10px;
+  min-width: 0;
+  font-size: 1.1em;
+}
