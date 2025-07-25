@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Panel Administrador - Gestión de Usuarios</title>
+  <title>Panel Administrador - Editar Usuarios</title>
   <link rel="stylesheet" href="/css/admin_dashboard.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
@@ -12,8 +12,8 @@
   <div class="admin-container">
     <div class="user-header">
       <div>
-        <h1>Panel Administrador</h1>
-        <p>Gestión de usuarios del sistema</p>
+        <h1>Editar usuarios</h1>
+        <p>Gestión y edición de usuarios del sistema</p>
       </div>
       <div class="user-info">
         <div class="logout-container">
@@ -22,84 +22,66 @@
         <div class="user-icon">A</div>
         <div class="user-details">
           <div class="username">Administrador</div>
-          <div class="user-role">Rol: UAI</div>
-          <button class="btn-status" onclick="window.location.href='/resumen'">
-            Consulta de Estatus
-          </button>
+          <div class="user-role">Rol: <%= user.rol === 'UAI' ? 'Administrador' : user.rol === 'UA' ? 'Almacén' : user.rol === 'UV' ? 'Visualizador' : user.rol %></div>
         </div>
       </div>
     </div>
 
-    <section id="crearUsuario" class="form-section">
-      <h2>Crear nuevo usuario</h2>
-      <form id="formRegistro">
-        <div class="input-group">
-          <label for="nombre">Nombre completo:</label>
-          <input type="text" id="nombre" name="nombre" required />
-        </div>
-        <div class="input-group">
-          <label for="userName">Nombre de usuario:</label>
-          <input type="text" id="userName" name="userName" required />
-        </div>
-        <div class="input-group">
-          <label for="email">Email:</label>
-          <input type="email" id="email" name="email" required />
-        </div>
-        <div class="input-group">
-          <label for="password">Contraseña:</label>
-          <input type="password" id="password" name="password" required minlength="8" />
-        </div>
-        <div class="input-group">
-          <label for="confirmarContrasena">Confirmar contraseña:</label>
-          <input type="password" id="confirmarContrasena" name="confirmarContrasena" required minlength="8" />
-        </div>
-        <div class="input-group">
-          <label for="rol">Rol:</label>
-          <select id="rol" name="rol" required>
-            <option value="">-- Selecciona un rol --</option>
-            <option value="UAI">UAI</option>
-            <option value="UA">UA</option>
-            <option value="UV">UV</option>
-            <option value="UReg">UReg</option>
-            <option value="UTI">UTI</option>
-            <option value="UR">UR</option>
-            <option value="UC">UC</option>
-            <option value="UE">UE</option>
-            <option value="ULL">ULL</option>
-          </select>
-        </div>
-        <div class="input-group">
-          <input type="checkbox" id="terminosCheck" checked style="display: none;" />
-          <label for="terminosCheck" class="leyenda-terminos">
-            Al crear esta cuenta, confirmas que el usuario ha sido informado y acepta los
-            <a href="/terminos" target="_blank">términos y condiciones</a> del sistema.
-          </label>
-        </div>
-        <button type="submit" class="btn btn-primary btn-submit">
-          <span class="btn-icon">+</span> Crear usuario
+    <section id="buscarUsuarios" class="form-section">
+      <div class="buscador-row">
+        <input type="text" id="buscadorUsuario" class="input-busqueda" placeholder="Buscar usuario por nombre, email o usuario..." />
+        <select id="filtroRol" class="input-select">
+          <option value="">Todas las áreas</option>
+          <option value="UAI">Administrador Inventario</option>
+          <option value="UA">Usuario Almacén</option>
+          <option value="UV">Visualizador</option>
+          <option value="UReg">Registro</option>
+          <option value="UTI">Test Inicial</option>
+          <option value="UR">Re-Test</option>
+          <option value="UC">Calidad</option>
+          <option value="UE">Empaque</option>
+          <option value="ULL">Liberación/Limpieza</option>
+        </select>
+        <button type="button" class="btn btn-secondary" onclick="resetBusqueda()">
+          <i class="fas fa-times"></i> Limpiar
         </button>
-      </form>
-
-      <h2>Usuarios registrados</h2>
+        <button type="button" class="btn btn-primary" onclick="window.location.href='/adminventario'">
+          <i class="fas fa-arrow-left"></i> Regresar al inicio
+        </button>
+      </div>
       <div class="table-container">
         <table class="usuarios-table">
           <thead>
             <tr>
-              <th>ID</th>
               <th>Nombre</th>
+              <th>Usuario</th>
               <th>Email</th>
-              <th>Rol</th>
+              <th>Área</th>
               <th>Acciones</th>
             </tr>
           </thead>
           <tbody id="usuariosTableBody">
             <% if (typeof usuarios !== 'undefined' && usuarios.length > 0) { %>
               <% usuarios.forEach(usuario => { %>
-                <tr>
-                  <td><%= usuario.id %></td>
+                <tr data-nombre="<%= usuario.nombre.toLowerCase() %>"
+                    data-username="<%= usuario.userName.toLowerCase() %>"
+                    data-email="<%= usuario.email.toLowerCase() %>"
+                    data-rol="<%= usuario.rol %>">
                   <td><%= usuario.nombre %></td>
+                  <td><%= usuario.userName %></td>
                   <td><%= usuario.email %></td>
-                  <td><%= usuario.rol %></td>
+                  <td>
+                    <%= usuario.rol === 'UAI' ? 'Administrador Inventario'
+                      : usuario.rol === 'UA' ? 'Usuario Almacén'
+                      : usuario.rol === 'UV' ? 'Visualizador'
+                      : usuario.rol === 'UReg' ? 'Registro'
+                      : usuario.rol === 'UTI' ? 'Test Inicial'
+                      : usuario.rol === 'UR' ? 'Re-Test'
+                      : usuario.rol === 'UC' ? 'Calidad'
+                      : usuario.rol === 'UE' ? 'Empaque'
+                      : usuario.rol === 'ULL' ? 'Liberación/Limpieza'
+                      : usuario.rol %>
+                  </td>
                   <td class="acciones-cell">
                     <a href="/editarusuario/<%= usuario.id %>" class="btn btn-secondary btn-editar-link" title="Editar">
                       <i class="fas fa-edit"></i>
@@ -107,7 +89,6 @@
                     <button class="btn btn-eliminar acciones-btn" data-id="<%= usuario.id %>" title="Eliminar">
                       <i class="fas fa-trash-alt"></i>
                     </button>
-                    <!-- Toggle activar/desactivar tipo switch -->
                     <label class="switch-toggle" title="Activar/Desactivar cuenta">
                       <input 
                         type="checkbox" 
@@ -129,62 +110,125 @@
           </tbody>
         </table>
       </div>
+      <div class="paginador-row">
+        <button id="anteriorPag" class="btn btn-secondary"><i class="fas fa-arrow-left"></i></button>
+        <span id="paginaActual">1</span>
+        <button id="siguientePag" class="btn btn-secondary"><i class="fas fa-arrow-right"></i></button>
+      </div>
     </section>
   </div>
-
-  <!-- Modal editar -->
-  <div id="modalEditar" style="display: none;">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>Editar usuario</h3>
-      </div>
-      <form id="formEditarUsuario">
-        <input type="hidden" id="editarId" name="id" />
-        <div class="input-group">
-          <label for="editarNombre">Nombre:</label>
-          <input type="text" id="editarNombre" name="nombre" required />
-        </div>
-        <div class="input-group">
-          <label for="editarEmail">Email:</label>
-          <input type="email" id="editarEmail" name="email" required />
-        </div>
-        <div class="input-group">
-          <label for="editarRol">Rol:</label>
-          <select id="editarRol" name="rol" required>
-            <option value="">Selecciona rol</option>
-            <option value="UAI">Administrador (UAI)</option>
-            <option value="UReg">Registro (UReg)</option>
-            <option value="UTI">Test Inicial (UTI)</option>
-            <option value="UC">Calidad (UC)</option>
-            <option value="ULL">Liberación y Limpieza (ULL)</option>
-            <option value="UR">Re-Test (UR)</option>
-            <option value="UE">Empaque (UE)</option>
-            <option value="UEN">Ensamble (UEN)</option>
-          </select>
-        </div>
-        <!-- Toggle switch en el modal -->
-        <div class="input-group">
-          <label for="editarActivo">Cuenta activa:</label>
-          <label class="switch-toggle">
-            <input type="checkbox" id="editarActivo" name="activo" />
-            <span class="slider-toggle"></span>
-          </label>
-          <span id="editarEstadoTexto" class="estado-texto">Activo</span>
-        </div>
-        <div class="modal-buttons">
-          <button type="submit" class="btn btn-primary">Guardar</button>
-          <button type="button" class="btn btn-secondary" onclick="cerrarModal()">✕ Cancelar</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Scripts -->
-  <script src="https://cdn.jsdelivr.net/npm/just-validate@4.3.0/dist/just-validate.production.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <script src="/js/swalConfig.js"></script>
   <script src="/js/cerrarsesion.js"></script>
-  <script src="/js/registro.js"></script>
-  <script src="/js/admin.js"></script>
+  <script>
+    // --- Constantes para paginación y filtros
+    const filasPorPagina = 20;
+    let paginaActual = 1;
+    let usuarios = [];
+    // Cargar los usuarios del backend (la variable EJS "usuarios")
+    <% if (typeof usuarios !== 'undefined') { %>
+      usuarios = <%- JSON.stringify(usuarios) %>;
+    <% } %>
+    let usuariosFiltrados = usuarios;
+
+    // --- Renderizar tabla paginada
+    function renderTabla() {
+      const tbody = document.getElementById('usuariosTableBody');
+      tbody.innerHTML = '';
+      const inicio = (paginaActual - 1) * filasPorPagina;
+      const fin = inicio + filasPorPagina;
+      const pagina = usuariosFiltrados.slice(inicio, fin);
+      if (pagina.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5">No hay usuarios registrados.</td></tr>`;
+        return;
+      }
+      pagina.forEach(usuario => {
+        tbody.innerHTML += `
+          <tr data-nombre="${usuario.nombre.toLowerCase()}"
+              data-username="${usuario.userName.toLowerCase()}"
+              data-email="${usuario.email.toLowerCase()}"
+              data-rol="${usuario.rol}">
+            <td>${usuario.nombre}</td>
+            <td>${usuario.userName}</td>
+            <td>${usuario.email}</td>
+            <td>${rolCompleto(usuario.rol)}</td>
+            <td class="acciones-cell">
+              <a href="/editarusuario/${usuario.id}" class="btn btn-secondary btn-editar-link" title="Editar">
+                <i class="fas fa-edit"></i>
+              </a>
+              <button class="btn btn-eliminar acciones-btn" data-id="${usuario.id}" title="Eliminar">
+                <i class="fas fa-trash-alt"></i>
+              </button>
+              <label class="switch-toggle" title="Activar/Desactivar cuenta">
+                <input 
+                  type="checkbox" 
+                  class="toggle-activo" 
+                  data-id="${usuario.id}" 
+                  ${usuario.activo ? 'checked' : ''}
+                />
+                <span class="slider-toggle"></span>
+              </label>
+              <span class="estado-texto">${usuario.activo ? 'Activo' : 'Inactivo'}</span>
+            </td>
+          </tr>
+        `;
+      });
+      document.getElementById('paginaActual').textContent = paginaActual;
+    }
+
+    function rolCompleto(rol) {
+      switch(rol) {
+        case 'UAI': return 'Administrador Inventario';
+        case 'UA': return 'Usuario Almacén';
+        case 'UV': return 'Visualizador';
+        case 'UReg': return 'Registro';
+        case 'UTI': return 'Test Inicial';
+        case 'UR': return 'Re-Test';
+        case 'UC': return 'Calidad';
+        case 'UE': return 'Empaque';
+        case 'ULL': return 'Liberación/Limpieza';
+        default: return rol;
+      }
+    }
+
+    // --- Filtro buscador y por área
+    document.getElementById('buscadorUsuario').addEventListener('input', aplicarFiltros);
+    document.getElementById('filtroRol').addEventListener('change', aplicarFiltros);
+
+    function aplicarFiltros() {
+      const texto = document.getElementById('buscadorUsuario').value.toLowerCase();
+      const rol = document.getElementById('filtroRol').value;
+      usuariosFiltrados = usuarios.filter(u => (
+        (u.nombre.toLowerCase().includes(texto) ||
+        u.userName.toLowerCase().includes(texto) ||
+        u.email.toLowerCase().includes(texto)) &&
+        (rol === '' || u.rol === rol)
+      ));
+      paginaActual = 1;
+      renderTabla();
+    }
+
+    function resetBusqueda() {
+      document.getElementById('buscadorUsuario').value = '';
+      document.getElementById('filtroRol').value = '';
+      aplicarFiltros();
+    }
+
+    // --- Paginador
+    document.getElementById('anteriorPag').addEventListener('click', () => {
+      if (paginaActual > 1) {
+        paginaActual--;
+        renderTabla();
+      }
+    });
+    document.getElementById('siguientePag').addEventListener('click', () => {
+      if (paginaActual < Math.ceil(usuariosFiltrados.length / filasPorPagina)) {
+        paginaActual++;
+        renderTabla();
+      }
+    });
+
+    // Inicializar tabla en primer render
+    renderTabla();
+  </script>
 </body>
 </html>

@@ -49,19 +49,19 @@ exports.register = async (req, res) => {
 };
 
 
-// Listar usuarios
 exports.listarUsuarios = async (req, res) => {
   try {
     const usuarios = await prisma.user.findMany({
-      where: { deletedAt: null, activo: true }, // Solo usuarios activos y no eliminados
-      select: { id: true, nombre: true, userName: true, email: true, rol: true }
+      where: { deletedAt: null, activo: true },
+      select: { id: true, nombre: true, userName: true, email: true, rol: true, activo: true }
     });
-    res.render('listarusuarios', { usuarios });
+    res.render('listarusuarios', { usuarios, user: req.user });
   } catch (error) {
     console.error('Error al obtener usuarios:', error);
     res.status(500).send('Error al cargar la vista de usuarios');
   }
 };
+
 
 exports.actualizarUsuario = async (req, res) => {
   try {

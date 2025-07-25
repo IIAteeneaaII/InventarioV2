@@ -126,3 +126,9 @@ app.listen(PORT, HOST, async () => {
     console.error('Error al cargar tareas programadas:', err);
   }
 });
+
+//Req user siempre
+app.use((req, res, next) => {
+  res.locals.user = req.user;
+  next();
+});
