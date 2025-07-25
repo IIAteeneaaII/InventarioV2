@@ -48,11 +48,11 @@ validator
     };
 
     try {
-      const res = await fetch('/admin/usuarios', { 
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
+const res = await fetch('/crearusuario', { 
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(data)
+});
 
       const json = await res.json();
 
