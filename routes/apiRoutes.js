@@ -3,35 +3,40 @@ const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const { verificarAuth, verificarRol } = require('../controllers/authController');
-
-// Función para convertir BigInt a Number
-function replaceBigIntWithNumber(obj) {
-  if (obj === null || obj === undefined) {
-    return obj;
-  }
-  
-  if (typeof obj === 'bigint') {
-    return Number(obj);
-  }
-  
-  if (Array.isArray(obj)) {
-    return obj.map(replaceBigIntWithNumber);
-  }
-  
-  if (typeof obj === 'object') {
-    Object.keys(obj).forEach(key => {
-      obj[key] = replaceBigIntWithNumber(obj[key]);
-    });
-  }
-  
-  return obj;
-}
+const registroController = require('../controllers/registroController');
+const procesamientoController = require('../controllers/procesamientoController.js');
+const empaqueController = require('../controllers/empaqueController');
+const scrapController = require('../controllers/scrapController');
+const loteController = require('../controllers/loteController');
+const { replaceBigIntWithNumber } = require('../utils/dataUtils');
 
 // Proteger todas las rutas API con autenticación
 router.use(verificarAuth);
 
+// Rutas de registro
+router.post('/registro/modem', verificarRol(['UA', 'UReg']), registroController.registrarModem);
+router.post('/registro/confirmar-lote', verificarRol(['UA', 'UReg']), registroController.confirmarLote);
+router.post('/registro/scrap', verificarRol(['UA', 'UReg']), registroController.registrarScrap);
+router.get('/registro/historial/:loteId', registroController.obtenerHistorial);
+
+// Rutas de procesamiento
+router.post('/proceso/modem', verificarRol(['UTI', 'UR', 'UC', 'ULL', 'UV']), procesamientoController.procesarModem);
+router.post('/proceso/reparacion', verificarRol(['UR', 'UTI', 'UV']), procesamientoController.registrarReparacion);
+router.post('/proceso/scrap', procesamientoController.registrarScrapProceso);
+
+// Rutas de empaque
+router.post('/empaque/modem', verificarRol(['UE']), empaqueController.registrarModemEmpaque);
+router.post('/empaque/cerrar-lote', verificarRol(['UE']), empaqueController.cerrarLoteSalida);
+router.post('/scrap/registrar-salida', verificarRol(['UE']), scrapController.registrarScrapSalida);
+router.post('/scrap/cerrar-lote', verificarRol(['UE']), scrapController.cerrarLoteScrap);
+
+// Rutas de consulta
+router.get('/lotes/activos', loteController.obtenerLotesActivos);
+router.get('/lotes/activos/scrap', loteController.obtenerLotesScrapActivos);
+router.get('/modems/lote/:loteId', loteController.obtenerModemsPorLote);
+
 // Endpoint para estadísticas generales
-router.get('/stats/resumen', verificarRol(['UAI']), async (req, res) => {
+router.get('/stats/resumen', verificarRol(['UAI', 'UV']), async (req, res) => {
   try {
     const dias = parseInt(req.query.dias || 30);
     
@@ -104,6 +109,11 @@ router.get('/stats/resumen', verificarRol(['UAI']), async (req, res) => {
 router.get('/stats/sku/:skuId', verificarRol(['UAI', 'UA', 'UV']), async (req, res) => {
   try {
     const skuId = parseInt(req.params.skuId);
+    
+    if (isNaN(skuId)) {
+      return res.status(400).json({ error: 'ID de SKU inválido' });
+    }
+    
     const dias = parseInt(req.query.dias || 30);
     
     // Validar que el SKU existe
@@ -182,7 +192,8 @@ router.get('/test', (req, res) => {
   });
 });
 
-router.post('/skus/actualizar-contabilidad', verificarAuth, verificarRol(['UAI']), async (req, res) => {
+// Endpoint para actualizar contabilidad de SKUs
+router.post('/skus/actualizar-contabilidad', verificarRol(['UAI']), async (req, res) => {
   try {
     const { actualizaciones } = req.body;
     
@@ -190,17 +201,30 @@ router.post('/skus/actualizar-contabilidad', verificarAuth, verificarRol(['UAI']
       return res.status(400).json({ error: 'Datos inválidos' });
     }
     
-    // Registrar la actualización en un historial si es necesario
-    await prisma.contabilidadHistorial.create({
-      data: {
-        usuarioId: req.user.id,
-        fecha: new Date(),
-        datos: JSON.stringify(actualizaciones)
-      }
-    });
+    // Verificar si existe la tabla contabilidadHistorial
+    const tableExists = await prisma.$queryRaw`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'ContabilidadHistorial'
+      );
+    `;
     
-    // En una implementación real, aquí tendrías lógica para actualizar 
-    // la contabilidad en tu base de datos según tu modelo de datos específico
+    if (tableExists[0].exists) {
+      // Registrar la actualización en un historial
+      await prisma.contabilidadHistorial.create({
+        data: {
+          usuarioId: req.user.id,
+          fecha: new Date(),
+          datos: JSON.stringify(actualizaciones)
+        }
+      });
+    } else {
+      console.log('Tabla ContabilidadHistorial no existe. Saltando registro de historial.');
+    }
+    
+    // Aquí implementar la lógica de actualización según tu modelo específico
+    // ...
     
     res.json({ success: true, message: 'Datos actualizados correctamente' });
   } catch (error) {
@@ -210,56 +234,56 @@ router.post('/skus/actualizar-contabilidad', verificarAuth, verificarRol(['UAI']
 });
 
 // Nuevo endpoint para detalles de SKU específico
-router.get('/stats/sku-detalle', verificarAuth, async (req, res) => {
-    try {
-        const { sku } = req.query;
-        
-        if (!sku) {
-            return res.status(400).json({ error: 'Se requiere parámetro SKU' });
-        }
-        
-        // Buscar el ID del SKU primero
-        const skuRecord = await prisma.catalogoSKU.findFirst({
-            where: {
-                nombre: sku
-            },
-            select: {
-                id: true
-            }
-        });
-        
-        if (!skuRecord) {
-            return res.status(404).json({ error: 'SKU no encontrado' });
-        }
-        
-        // Consultar modems con este SKU agrupados por fase
-        const detallesPorFase = await prisma.$queryRaw`
-            SELECT 
-                m."faseActual" AS categoria, 
-                COUNT(*) AS cantidad
-            FROM "Modem" m
-            WHERE m."skuId" = ${skuRecord.id}
-            AND m."deletedAt" IS NULL
-            GROUP BY m."faseActual"
-            ORDER BY cantidad DESC
-        `;
-        
-        // Convertir BigInt a Number
-        const resultado = detallesPorFase.map(item => ({
-            categoria: item.categoria,
-            cantidad: Number(item.cantidad)
-        }));
-        
-        res.json(resultado);
-        
-    } catch (error) {
-        console.error('Error al obtener detalles del SKU:', error);
-        res.status(500).json({ error: error.message });
+router.get('/stats/sku-detalle', async (req, res) => {
+  try {
+    const { sku } = req.query;
+    
+    if (!sku) {
+      return res.status(400).json({ error: 'Se requiere parámetro SKU' });
     }
+    
+    // Buscar el ID del SKU primero
+    const skuRecord = await prisma.catalogoSKU.findFirst({
+      where: {
+        nombre: sku
+      },
+      select: {
+        id: true
+      }
+    });
+    
+    if (!skuRecord) {
+      return res.status(404).json({ error: 'SKU no encontrado' });
+    }
+    
+    // Consultar modems con este SKU agrupados por fase
+    const detallesPorFase = await prisma.$queryRaw`
+      SELECT 
+        m."faseActual" AS categoria, 
+        COUNT(*) AS cantidad
+      FROM "Modem" m
+      WHERE m."skuId" = ${skuRecord.id}
+      AND m."deletedAt" IS NULL
+      GROUP BY m."faseActual"
+      ORDER BY cantidad DESC
+    `;
+    
+    // Convertir BigInt a Number
+    const resultado = detallesPorFase.map(item => ({
+      categoria: item.categoria,
+      cantidad: Number(item.cantidad)
+    }));
+    
+    res.json(resultado);
+    
+  } catch (error) {
+    console.error('Error al obtener detalles del SKU:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Endpoint para datos filtrados por SKU para el dashboard principal
-router.get('/stats/dashboard-filtered', verificarAuth, async (req, res) => {
+router.get('/stats/dashboard-filtered', async (req, res) => {
   try {
     const { skuNombre } = req.query;
     const dias = parseInt(req.query.dias || 30);
@@ -273,6 +297,8 @@ router.get('/stats/dashboard-filtered', verificarAuth, async (req, res) => {
       });
       if (skuInfo) {
         skuId = skuInfo.id;
+      } else {
+        return res.status(404).json({ error: 'SKU no encontrado' });
       }
     }
 
@@ -384,13 +410,13 @@ router.get('/stats/dashboard-filtered', verificarAuth, async (req, res) => {
   }
 });
 
-// Endpoint para datos de etapas del proceso - VERSIÓN CORREGIDA
-router.get('/stats/etapas-proceso', verificarAuth, async (req, res) => {
+// Endpoint para datos de etapas del proceso - Versión corregida
+router.get('/stats/etapas-proceso', async (req, res) => {
   try {
     const { skuNombre } = req.query;
     console.log('Solicitud recibida para etapas-proceso, SKU:', skuNombre);
     
-    // Primero, consultar todas las fases disponibles con su conteo
+    // Primero, consultar todas las fases disponibles
     let whereClause = 'm."deletedAt" IS NULL';
     let params = [];
     
@@ -399,16 +425,29 @@ router.get('/stats/etapas-proceso', verificarAuth, async (req, res) => {
       params.push(skuNombre);
     }
     
-    // Usamos CAST para convertir el enum a text y evitar problemas de tipo
+    // Consulta mejorada para evitar problemas de conversión de enums
     const query = `
-      SELECT 
-        CAST(m."faseActual" AS TEXT) AS fase_nombre,
-        COUNT(*) AS cantidad
-      FROM "Modem" m
-      JOIN "CatalogoSKU" c ON m."skuId" = c.id
-      WHERE ${whereClause}
-      GROUP BY m."faseActual"
-      ORDER BY m."faseActual"
+      WITH fases_ordenadas AS (
+        SELECT 
+          CAST(m."faseActual" AS TEXT) AS fase_nombre,
+          COUNT(*) AS cantidad,
+          CASE
+            WHEN CAST(m."faseActual" AS TEXT) = 'REGISTRO' THEN 1
+            WHEN CAST(m."faseActual" AS TEXT) = 'TEST_INICIAL' THEN 2
+            WHEN CAST(m."faseActual" AS TEXT) = 'COSMETICA' THEN 3
+            WHEN CAST(m."faseActual" AS TEXT) = 'LIBERACION_LIMPIEZA' THEN 4
+            WHEN CAST(m."faseActual" AS TEXT) = 'RETEST' THEN 5
+            WHEN CAST(m."faseActual" AS TEXT) = 'EMPAQUE' THEN 6
+            WHEN CAST(m."faseActual" AS TEXT) = 'SCRAP' THEN 7
+            ELSE 99
+          END AS orden
+        FROM "Modem" m
+        JOIN "CatalogoSKU" c ON m."skuId" = c.id
+        WHERE ${whereClause}
+        GROUP BY m."faseActual"
+      )
+      SELECT fase_nombre, cantidad FROM fases_ordenadas
+      ORDER BY orden ASC
     `;
     
     console.log('Ejecutando consulta para obtener fases');
@@ -428,29 +467,20 @@ router.get('/stats/etapas-proceso', verificarAuth, async (req, res) => {
       return res.json(etapas);
     }
     
-    // Asignar datos a las categorías según su posición
-    const totalFases = fasesData.length;
-    
-    if (totalFases >= 1) {
-      // Primera fase es registro
-      etapas.registro = Number(fasesData[0].cantidad);
+    // Mapear las fases a las categorías correspondientes
+    for (const fase of fasesData) {
+      const nombreFase = fase.fase_nombre;
+      const cantidad = parseInt(fase.cantidad);
       
-      if (totalFases >= 2) {
-        // Última fase es final
-        etapas.final = Number(fasesData[totalFases - 1].cantidad);
-        
-        if (totalFases >= 3) {
-          // Penúltima fase es entrega
-          etapas.entrega = Number(fasesData[totalFases - 2].cantidad);
-          
-          // Fases intermedias son en proceso (si hay más de 3 fases)
-          if (totalFases > 3) {
-            // Sumar todas las fases intermedias
-            for (let i = 1; i < totalFases - 2; i++) {
-              etapas.enProceso += Number(fasesData[i].cantidad);
-            }
-          }
-        }
+      if (nombreFase === 'REGISTRO') {
+        etapas.registro += cantidad;
+      } else if (nombreFase === 'EMPAQUE' || nombreFase === 'SCRAP') {
+        etapas.final += cantidad;
+      } else if (nombreFase === 'RETEST') {
+        etapas.entrega += cantidad;
+      } else {
+        // Todas las demás fases son "en proceso"
+        etapas.enProceso += cantidad;
       }
     }
     
@@ -458,8 +488,6 @@ router.get('/stats/etapas-proceso', verificarAuth, async (req, res) => {
     res.json(etapas);
   } catch (error) {
     console.error('Error al obtener datos de etapas del proceso:', error);
-    
-    // En caso de error, devolver un error claro sin datos de ejemplo
     res.status(500).json({ 
       error: true,
       message: 'Error al calcular datos de etapas del proceso',

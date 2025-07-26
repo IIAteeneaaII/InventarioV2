@@ -17,7 +17,7 @@ enum Rol {
   UC
   UE
   ULL
-  UEN // <--- asegúrate de que esté aquí
+  UEN
 }
 
 enum EstadoRegistro {
@@ -45,11 +45,29 @@ enum FaseProceso {
   EMPAQUE
 }
 
+// Actualizado el enum MotivoScrap para renombrar DEFECTO_HW a FUERA_DE_RANGO
 enum MotivoScrap {
-  DEFECTO_HW
+  FUERA_DE_RANGO  // Antes DEFECTO_HW
   DEFECTO_SW
   SIN_REPARACION
+  COSMETICA       // Nuevo
+  INFESTADO       // Nuevo
   OTRO
+}
+
+// Nuevo enum para detalle de scrap
+enum DetalleScrap {
+  CIRCUITO_OK_BASE_NOK     // Sirve circuito pero no base (Cosmética)
+  BASE_OK_CIRCUITO_NOK     // Sirve base pero no circuito (Fuera de rango)
+  CIRCUITO_NOK_BASE_NOK    // No sirve circuito ni base (Fuera de rango)
+  INFESTACION              // Para casos de infestación
+  OTRO                     // Para otros casos
+}
+
+// Nuevo enum para distinguir tipos de lote
+enum TipoLote {
+  ENTRADA
+  SALIDA
 }
 
 // Usuario del sistema
@@ -79,6 +97,7 @@ model CatalogoSKU {
   modems      Modem[]
   vistas      VistaPorSKU[] 
 }
+
 // tabla para renderizado de vistas segun sku 
 model VistaPorSKU {
   id        Int    @id @default(autoincrement())
@@ -89,24 +108,29 @@ model VistaPorSKU {
 
   @@unique([skuId, rol]) // Cada combinación SKU + ROL debe ser única
 }
-// Lotes de trabajo
+
+// Lotes de trabajo - Modificado con nuevos campos
 model Lote {
   id            Int         @id @default(autoincrement())
   numero        String      @unique
   skuId         Int
   sku           CatalogoSKU @relation(fields: [skuId], references: [id])
+  tipoLote      TipoLote    @default(ENTRADA)  // Nuevo campo
+  esScrap       Boolean     @default(false)    // Nuevo campo
+  motivoScrap   MotivoScrap? // Nuevo campo para lotes de scrap
   estado        EstadoLote  @default(EN_PROCESO)
   prioridad     Int         @default(5)
   responsableId Int
   responsable   User        @relation("UserLotes", fields: [responsableId], references: [id])
   registros     Registro[]
-  modems        Modem[]
+  modems        Modem[]     @relation("ModemsEnLote")        // Relación renombrada
+  modemsSalida  Modem[]     @relation("ModemsEnLoteSalida")  // Nueva relación
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
   deletedAt     DateTime?
 }
 
-// Modems/Dispositivos a procesar
+// Modems/Dispositivos a procesar - Modificado con nuevos campos
 model Modem {
   id             Int          @id @default(autoincrement())
   sn             String       @unique
@@ -116,23 +140,27 @@ model Modem {
   estadoActual   Estado       @relation(fields: [estadoActualId], references: [id])
   faseActual     FaseProceso
   loteId         Int
-  lote           Lote         @relation(fields: [loteId], references: [id])
+  lote           Lote         @relation("ModemsEnLote", fields: [loteId], references: [id])
+  loteSalidaId   Int?         // Nuevo campo
+  loteSalida     Lote?        @relation("ModemsEnLoteSalida", fields: [loteSalidaId], references: [id])
   responsableId  Int
   responsable    User         @relation(fields: [responsableId], references: [id])
   motivoScrap    MotivoScrap?
+  detalleScrap   DetalleScrap? // Nuevo campo
   registros      Registro[]
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   deletedAt      DateTime?
 }
 
-// Registros de acciones realizadas
+// Registros de acciones realizadas - Modificado con nuevo campo
 model Registro {
   id          Int            @id @default(autoincrement())
   sn          String
   fase        FaseProceso
   estado      EstadoRegistro
   motivoScrap MotivoScrap?
+  detalleScrap DetalleScrap? // Nuevo campo
   reparacion  String?
   userId      Int
   user        User           @relation(fields: [userId], references: [id])

@@ -64,3 +64,38 @@ exports.pausarOImprimirLote = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+/**
+ * Obtener lotes activos (placeholder)
+ */
+exports.obtenerLotesActivos = async (req, res) => {
+  try {
+    // Lógica temporal para evitar errores. Devuelve un array vacío.
+    res.status(200).json({ success: true, data: [] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * Obtener lotes de scrap activos (placeholder)
+ */
+exports.obtenerLotesScrapActivos = async (req, res) => {
+  try {
+    res.status(200).json({ success: true, data: [] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * Obtener modems por lote (placeholder)
+ */
+exports.obtenerModemsPorLote = async (req, res) => {
+  try {
+    const { loteId } = req.params;
+    res.status(200).json({ success: true, message: `Datos para lote ${loteId}`, data: [] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

@@ -11,7 +11,13 @@ CREATE TYPE "EstadoLote" AS ENUM ('EN_PROCESO', 'PAUSADO', 'COMPLETADO', 'CANCEL
 CREATE TYPE "FaseProceso" AS ENUM ('REGISTRO', 'TEST_INICIAL', 'COSMETICA', 'LIBERACION_LIMPIEZA', 'ENSAMBLE', 'RETEST', 'EMPAQUE');
 
 -- CreateEnum
-CREATE TYPE "MotivoScrap" AS ENUM ('DEFECTO_HW', 'DEFECTO_SW', 'SIN_REPARACION', 'OTRO');
+CREATE TYPE "MotivoScrap" AS ENUM ('FUERA_DE_RANGO', 'DEFECTO_SW', 'SIN_REPARACION', 'COSMETICA', 'INFESTADO', 'OTRO');
+
+-- CreateEnum
+CREATE TYPE "DetalleScrap" AS ENUM ('CIRCUITO_OK_BASE_NOK', 'BASE_OK_CIRCUITO_NOK', 'CIRCUITO_NOK_BASE_NOK', 'INFESTACION', 'OTRO');
+
+-- CreateEnum
+CREATE TYPE "TipoLote" AS ENUM ('ENTRADA', 'SALIDA');
 
 -- CreateTable
 CREATE TABLE "User" (
@@ -53,6 +59,9 @@ CREATE TABLE "Lote" (
     "id" SERIAL NOT NULL,
     "numero" TEXT NOT NULL,
     "skuId" INTEGER NOT NULL,
+    "tipoLote" "TipoLote" NOT NULL DEFAULT 'ENTRADA',
+    "esScrap" BOOLEAN NOT NULL DEFAULT false,
+    "motivoScrap" "MotivoScrap",
     "estado" "EstadoLote" NOT NULL DEFAULT 'EN_PROCESO',
     "prioridad" INTEGER NOT NULL DEFAULT 5,
     "responsableId" INTEGER NOT NULL,
@@ -71,8 +80,10 @@ CREATE TABLE "Modem" (
     "estadoActualId" INTEGER NOT NULL,
     "faseActual" "FaseProceso" NOT NULL,
     "loteId" INTEGER NOT NULL,
+    "loteSalidaId" INTEGER,
     "responsableId" INTEGER NOT NULL,
     "motivoScrap" "MotivoScrap",
+    "detalleScrap" "DetalleScrap",
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "deletedAt" TIMESTAMP(3),
@@ -87,6 +98,7 @@ CREATE TABLE "Registro" (
     "fase" "FaseProceso" NOT NULL,
     "estado" "EstadoRegistro" NOT NULL,
     "motivoScrap" "MotivoScrap",
+    "detalleScrap" "DetalleScrap",
     "reparacion" TEXT,
     "userId" INTEGER NOT NULL,
     "loteId" INTEGER NOT NULL,
@@ -199,6 +211,9 @@ ALTER TABLE "Modem" ADD CONSTRAINT "Modem_estadoActualId_fkey" FOREIGN KEY ("est
 
 -- AddForeignKey
 ALTER TABLE "Modem" ADD CONSTRAINT "Modem_loteId_fkey" FOREIGN KEY ("loteId") REFERENCES "Lote"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Modem" ADD CONSTRAINT "Modem_loteSalidaId_fkey" FOREIGN KEY ("loteSalidaId") REFERENCES "Lote"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Modem" ADD CONSTRAINT "Modem_responsableId_fkey" FOREIGN KEY ("responsableId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
