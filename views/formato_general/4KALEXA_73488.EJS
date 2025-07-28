@@ -4,9 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CAPTUA NUMEROS DE SERIE</title>
-  <link rel="stylesheet" href="/css/formatoC.css" />    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="/public/css/formatoC.css" />    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="/js/sweetalert-controller.js"></script>
 </head>
 <body>
     <div class="app-container">
@@ -174,10 +176,10 @@
         // Procesar scrap (con validación de motivo)
         if (scrapInput.value.trim() !== '') {
             if (!motivoScrapSelect.value) {
-                alert('Para registrar un Scrap es necesario seleccionar el motivo');
-                motivoScrapSelect.focus();
-                return;
-            }
+                 showError('Para registrar un Scrap es necesario seleccionar el motivo');
+                 motivoScrapSelect.focus();
+                 return;
+                }
             
             const motivoTexto = motivoScrapSelect.options[motivoScrapSelect.selectedIndex].text;
             agregarRegistro('Scrap', scrapInput.value.trim(), motivoTexto);
@@ -188,8 +190,8 @@
         
         // Mostrar alerta si no se ingresó ningún registro
         if (!registroAgregado) {
-            alert('Por favor ingrese al menos un valor en S/N, Reparaciones o Scrap');
-            snInput.focus();
+          showError('Por favor ingrese al menos un valor en S/N, Reparaciones o Scrap');
+          snInput.focus();
         }
     }
     
