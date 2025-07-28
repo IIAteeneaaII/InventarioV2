@@ -32,6 +32,14 @@ exports.login = async (req, res) => {
       return res.redirect('/');
     }
 
+    // AÑADIR ESTA VERIFICACIÓN
+    if (!user.activo) {
+      // Usamos JSON porque el login es una API que responde al frontend
+      return res.status(403).json({
+        message: 'Tu cuenta está desactivada. Contacta a un administrador.'
+      });
+    }
+
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       setFlashMessage(res, 'Correo o contraseña incorrectos', 'error');
@@ -101,7 +109,10 @@ exports.login = async (req, res) => {
 
 // Implementaciones de los otros métodos (usa los existentes)
 exports.registrar = async (req, res) => { /* Tu implementación existente */ };
-exports.logout = (req, res) => { /* Tu implementación existente */ };
+exports.logout = (req, res) => {
+  res.clearCookie('token');
+  res.status(200).json({ message: 'Sesión cerrada exitosamente' });
+};
 exports.recoverPassword = async (req, res) => { /* Tu implementación existente */ };
 exports.resetPassword = async (req, res) => { /* Tu implementación existente */ };
 

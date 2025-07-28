@@ -19,6 +19,6 @@ router.post('/recover-password', recoverPassword);
 router.post('/reset-password', resetPassword);
 
 // Logout
-router.get('/logout', logout);
+router.post('/logout', logout);
 
 module.exports = router;

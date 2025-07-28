@@ -15,6 +15,8 @@ const inventoryRoutes = require('./routes/inventoryRoutes');
 const principalScrRoutes = require('./routes/principalScrRoutes');
 const { verificarAuth, verificarRol } = require('./controllers/authController');
 const { loadAllJobs } = require('./utils/jobManager');
+const userDataMiddleware = require('./middlewares/userDataMiddleware'); // 1. Importar
+const noCacheMiddleware = require('./middlewares/noCache'); // Importar el nuevo middleware
 const viewRoutes = require('./routes/viewRoutes');
 const loggerMiddleware = require('./middlewares/loggerMiddleware');
 const morgan = require('morgan');
@@ -72,8 +74,11 @@ app.get('/TerminosyCondiciones', (req, res) => res.render('terminosyCondiciones'
 // --- RUTAS PROTEGIDAS DESDE AQUÍ ---
 app.use(verificarAuth); // Todo lo de abajo requiere login/JWT válido
 
+// 2. Aplicar el middleware para que user esté disponible en todas las vistas protegidas
+app.use(userDataMiddleware);
+
 // --- Administración de usuarios ---
-app.use('/admin', verificarRol('UAI'), adminRoutes);
+app.use('/admin', verificarRol(['UAI']), adminRoutes);
 
 // --- API protegida (inventario, lotes, modems, etc) ---
 app.use('/api', inventoryRoutes);
@@ -125,10 +130,4 @@ app.listen(PORT, HOST, async () => {
   } catch (err) {
     console.error('Error al cargar tareas programadas:', err);
   }
-});
-
-//Req user siempre
-app.use((req, res, next) => {
-  res.locals.user = req.user;
-  next();
 });

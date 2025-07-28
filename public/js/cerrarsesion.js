@@ -9,20 +9,26 @@ function cerrarSesion() {
     cancelButtonText: "Cancelar"
   }).then((result) => {
     if (result.isConfirmed) {
-      // 1. Elimina todas las cookies
-      document.cookie.split(";").forEach((cookie) => {
-        const name = cookie.split("=")[0].trim();
-        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
-      });
-
-      // 2. Elimina token del localStorage
-      localStorage.removeItem("token");
-
-      // 3. Marca que se mostró el logout (opcional)
-      localStorage.setItem("showLogoutModal", "1");
-
-      // 4. Redirige al inicio
-      window.location.href = "/";
+      // 1. Llama al endpoint del backend para que invalide la cookie del token
+      fetch('/api/auth/logout', { method: 'POST' })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('No se pudo cerrar la sesión en el servidor.');
+          }
+          // 2. Limpia el localStorage del cliente
+          localStorage.removeItem('usuario'); // ¡Importante!
+          localStorage.removeItem('token'); // Por si acaso
+          
+          // 3. Marca que se mostró el logout (opcional)
+          localStorage.setItem("showLogoutModal", "1");
+          
+          // 4. Redirige al inicio
+          window.location.href = "/";
+        })
+        .catch(error => {
+          console.error('Error al cerrar sesión:', error);
+          Swal.fire('Error', 'No se pudo cerrar la sesión. Intenta de nuevo.', 'error');
+        });
     }
   });
 }

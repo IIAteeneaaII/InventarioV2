@@ -45,8 +45,9 @@ const validateRegister = [
   (req, res, next) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      const mensajes = errors.array().map(err => err.msg).join(' - ');
-      return res.redirect(`/registro?error=${encodeURIComponent(mensajes)}`);
+      // En lugar de redirigir aquí, adjuntamos los errores a la petición
+      // para que el controlador decida qué hacer.
+      req.validationErrors = errors.array();
     }
     next();
   }

@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
         cancelButtonText: 'Cancelar'
       }).then((result) => {
         if (result.isConfirmed) {
-          fetch(`/usuarios/${userId}/toggle`, {
+          fetch(`/admin/usuarios/${userId}/toggle`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ activo: willActivate })

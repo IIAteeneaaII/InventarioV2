@@ -52,7 +52,7 @@ exports.register = async (req, res) => {
 exports.listarUsuarios = async (req, res) => {
   try {
     const usuarios = await prisma.user.findMany({
-      where: { deletedAt: null, activo: true },
+      where: { deletedAt: null }, // Eliminamos el filtro 'activo: true'
       select: { id: true, nombre: true, userName: true, email: true, rol: true, activo: true }
     });
     res.render('listarusuarios', { usuarios, user: req.user });

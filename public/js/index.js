@@ -51,47 +51,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const data = await response.json();
       
-    if (response.ok && data.redirectTo) {
-      window.location.href = data.redirectTo;
-    } else {
-      throw new Error(data.message || 'Error en el inicio de sesión');
-    }
-
-      // Guardar token en localStorage
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('usuario', JSON.stringify(data.usuario));
-
-      // Redirigir según el rol
-      switch(data.usuario.rol) {
-        case 'UAI':
-          window.location.href = '/adminventario';
-          break;
-        case 'UA':
-          window.location.href = '/almacen';
-          break;
-        case 'UV':
-          window.location.href = '/visualizacion';
-          break;
-        case 'UReg':
-          window.location.href = '/registro';
-          break;
-        case 'UTI':
-          window.location.href = '/testini';
-          break;
-        case 'UR':
-          window.location.href = '/retest';
-          break;
-        case 'UC':
-          window.location.href = '/cosmetica';
-          break;
-        case 'UE':
-          window.location.href = '/empaque';
-          break;
-        case 'ULL':
-          window.location.href = '/lineaLote';
-          break;
-        default:
-          window.location.href = '/dashboard';
+      if (response.ok && data.redirectTo && data.user) {
+        // 1. Guardar los datos del usuario en localStorage ANTES de redirigir.
+        localStorage.setItem('usuario', JSON.stringify(data.user));
+        
+        // 2. Establecer el objeto global para la sesión actual (buena práctica).
+        window.user = data.user;
+        
+        // 3. Ahora sí, redirigir a la página que indicó el servidor.
+        window.location.href = data.redirectTo;
+      } else {
+        throw new Error(data.message || 'Error en el inicio de sesión');
       }
       
     } catch (error) {
