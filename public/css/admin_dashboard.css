@@ -284,23 +284,39 @@
   margin-top: 2px;  /* Añade esto para alinear con “Administrador” */
 }
 
-.logout-container {
-  position: absolute;
-  top: -30px;
-  right: 0;
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
 }
 
-.logout-icon {
-  font-size: 1.5rem;
-  color: #66b3b7;
+.logout-icon-btn {
+  background: none;
+  border: none;
   cursor: pointer;
-  transition: transform 0.2s, opacity 0.2s;
+  padding: 6px;
+  border-radius: 6px;
+  transition: background-color 0.3s;
+}
+
+.logout-icon-btn:hover {
+  background-color: #eaf4f4;
+}
+
+
+.logout-icon {
+    width: 20px;
+    height: 10px;
+    color: rgb(59, 164, 190);
+    cursor: pointer;
+    margin-top: .5px;
+    transition: transform 0.2s;
 }
 
 .logout-icon:hover {
-  transform: scale(1.1);
-  opacity: 0.8;
-  color: #4e8c8f;
+    transform: scale(1.1);
+    opacity: 0.8;
 }
 
     .username {

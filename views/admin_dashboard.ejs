@@ -45,6 +45,29 @@
       </a>
     </div>
   </div>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="/js/cerrarsesion.js"></script>
+  <script>
+    document.getElementById("descargar-btn").addEventListener("click", function () {
+      const tabla = document.querySelector(".registros-table");
+      if (!tabla) {
+        Swal.fire("Error", "No se encontró la tabla de registros.", "error");
+        return;
+      }
+      const tablaHTML = tabla.outerHTML.replace(/ /g, '%20');
+      const nombreArchivo = 'Empaque_4K_Alexa.xls';
+      const enlaceDescarga = document.createElement('a');
+      enlaceDescarga.href = 'data:application/vnd.ms-excel,' + tablaHTML;
+      enlaceDescarga.download = nombreArchivo;
+      document.body.appendChild(enlaceDescarga);
+      enlaceDescarga.click();
+      document.body.removeChild(enlaceDescarga);
+    });
+
+    document.getElementById("volver-btn").addEventListener("click", function () {
+      window.history.back();
+    });
+  </script>
+  
 </body>
 </html>

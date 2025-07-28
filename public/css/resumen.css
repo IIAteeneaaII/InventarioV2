@@ -157,18 +157,18 @@ input[type="text"]:focus, select:focus {
     border: 2px solid #66b3b7;
     
 }
+.logout-icon {
+    width: 20px;
+    height: 20px;
+    color: white;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: transform 0.2s;
+}
+
 .logout-icon:hover {
     transform: scale(1.1);
     opacity: 0.8;
-}
-.logout-icon {
-    width: 35px;
-    height: 35px;
-    cursor: pointer;
-    margin-top: 10px; /* Aumenta el espacio vertical */
-    transition: transform 0.2s;
-    gap: 8px; /* Esto separa todos los elementos */
-
 }
 /* Estilos para la columna Tipo */
 .registros-table td:nth-child(4) {
@@ -215,7 +215,7 @@ input[type="text"]:focus, select:focus {
     padding: 2px 0; /* Similar padding vertical al tag */
 }
 .username {
-    font-size: 1rem;
+    font-size: 1.5rem;
     font-weight: bold;
     color: #ffffff;
 }
