@@ -123,7 +123,7 @@ input[type="text"]:focus, select:focus {
 
 #volver-btn {
     display: inline-block;
-    margin-top: 90px;
+    margin-top: 145px;
     background-color: #6c757d;
     color: white;
     border: none;
@@ -164,8 +164,9 @@ input[type="text"]:focus, select:focus {
 }
 
 .logout-icon {
-    width: 35px;
-    height: 35px;
+    width: 20px;
+    height: 20px;
+    color: white;
     cursor: pointer;
     margin-top: 10px;
     transition: transform 0.2s;
@@ -176,11 +177,12 @@ input[type="text"]:focus, select:focus {
     opacity: 0.8;
 }
 
+
 .username {
-    font-size: 1rem;
+    font-size: 1.5rem;
     font-weight: bold;
     color: #ffffff;
-}
+}   
 
 .registros-table {
     width: 100%;

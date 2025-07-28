@@ -629,3 +629,26 @@
   box-shadow: 0 0 12px #38bdf8aa;
   transform: scale(1.15);
 }
+
+.h2-wrapper {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.btn-regresar {
+  background-color: #66b3b7;
+  color: white;
+  padding: 8px 14px;
+  font-size: 0.95rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.btn-regresar:hover {
+  background-color: #4e8c8f;
+}

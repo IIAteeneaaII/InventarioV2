@@ -7,8 +7,10 @@
 </head>
 <body>
   <div class="admin-container">
-    <h2>Consultar historial de proceso</h2>
-
+    <div class="h2-wrapper">
+      <h2>Consultar historial de proceso</h2>
+      <button id="btn-regresar" class="btn btn-regresar">Regresar</button>
+    </div>
     <!-- Formulario de búsqueda -->
     <form class="form-busqueda-ns" method="GET" action="/historial">
       <div class="busqueda-input-wrap">
@@ -62,5 +64,11 @@
       <% } %>
     <% } %>
   </div>
+  <script>
+  document.getElementById('btn-regresar').addEventListener('click', function () {
+    window.history.back();
+  });
+</script>
+
 </body>
 </html>
