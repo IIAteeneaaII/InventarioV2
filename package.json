@@ -53,5 +53,13 @@
     "prisma": "^6.11.1",
     "sass": "^1.89.0",
     "supertest": "^7.1.3"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/IIAteeneaaII/InventarioNuevo.git"
+  },
+  "bugs": {
+    "url": "https://github.com/IIAteeneaaII/InventarioNuevo/issues"
+  },
+  "homepage": "https://github.com/IIAteeneaaII/InventarioNuevo#readme"
 }
