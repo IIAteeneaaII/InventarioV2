@@ -81,142 +81,15 @@
             </div>
         </div>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="/js/cerrarsesion.js"></script>
     <!--Seccion de regreso de pagina-->
     <script >document.addEventListener('DOMContentLoaded', function() {
          document.getElementById('volver-btn').addEventListener('click', () => {
     window.history.back(); // Redirige a la página anterior
-  });
-    // Elementos del DOM
-    const snInput = document.getElementById('sn-input');
-    const reparacionesInput = document.getElementById('reparaciones-input');
-    const scrapInput = document.getElementById('scrap-input');
-    const motivoScrapSelect = document.getElementById('motivo-scrap');
-    const confirmarBtn = document.getElementById('confirmar-btn');
-    const registrosBody = document.getElementById('registros-body');
-    
-    // Obtener usuario actual
-    const usuarioActual = localStorage.getItem('username') || 'UsuarioDemo';
-    
-    // Array para almacenar registros
-    let registros = JSON.parse(localStorage.getItem('registros')) || [];
-    
-    // Función para formatear fecha
-    function formatearFecha(fecha) {
-        const opciones = { 
-            year: 'numeric', 
-            month: '2-digit', 
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit'
-        };
-        return fecha.toLocaleString('es-MX', opciones);
-    }
-    
-    // Función para renderizar los registros
-    function renderizarRegistros() {
-        registrosBody.innerHTML = '';
-        
-        if (registros.length === 0) {
-            registrosBody.innerHTML = `
-                <tr>
-                    <td colspan="4" style="text-align: center;">No hay registros aún</td>
-                </tr>
-            `;
-            return;
-        }
-        
-        registros.forEach(registro => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${registro.usuario}</td>
-                <td>${registro.fecha}</td>
-                <td>${registro.valor}</td>
-                <td>
-                    ${registro.tipo}
-                    ${registro.motivo ? `<span class="motivo-tag motivo-${registro.motivo}">${registro.motivo}</span>` : ''}
-                </td>
-            `;
-            registrosBody.appendChild(tr);
-        });
-    }
-    
-    // Función para agregar un nuevo registro
-    function agregarRegistro(tipo, valor, motivo = null) {
-        const nuevoRegistro = {
-            usuario: usuarioActual,
-            fecha: formatearFecha(new Date()),
-            tipo: motivo ? motivo : tipo,
-            valor: valor,
-            motivo: motivo ? motivo.toLowerCase() : null
-        };
-        
-        registros.unshift(nuevoRegistro);
-        localStorage.setItem('registros', JSON.stringify(registros));
-        renderizarRegistros();
-    }
-    
-    // Función para validar y procesar el formulario
-    function procesarFormulario() {
-        let registroAgregado = false;
-        
-        // Validar campo S/N (obligatorio)
-        if (snInput.value.trim() !== '') {
-            agregarRegistro('S/N', snInput.value.trim());
-            snInput.value = '';
-            registroAgregado = true;
-        }
-        
-        // Procesar reparaciones (opcional)
-        if (reparacionesInput.value.trim() !== '') {
-            agregarRegistro('Reparación', reparacionesInput.value.trim());
-            reparacionesInput.value = '';
-            registroAgregado = true;
-        }
-        
-        // Procesar scrap (con validación de motivo)
-        if (scrapInput.value.trim() !== '') {
-            if (!motivoScrapSelect.value) {
-                alert('Para registrar un Scrap es necesario seleccionar el motivo');
-                motivoScrapSelect.focus();
-                return;
-            }
-            
-            const motivoTexto = motivoScrapSelect.options[motivoScrapSelect.selectedIndex].text;
-            agregarRegistro('Scrap', scrapInput.value.trim(), motivoTexto);
-            scrapInput.value = '';
-            motivoScrapSelect.value = '';
-            registroAgregado = true;
-        }
-        
-        // Mostrar alerta si no se ingresó ningún registro
-        if (!registroAgregado) {
-            alert('Por favor ingrese al menos un valor en S/N, Reparaciones o Scrap');
-            snInput.focus();
-        }
-    }
-    
-    // Event Listeners
-    confirmarBtn.addEventListener('click', procesarFormulario);
-    
-    // Permitir enviar con Enter en cualquier campo
-    [snInput, reparacionesInput, scrapInput, motivoScrapSelect].forEach(element => {
-        element.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                procesarFormulario();
-            }
-        });
     });
-    
-    // Cargar registros al iniciar
-    renderizarRegistros();
-    
-    // Poner foco en el campo S/N al cargar
-    snInput.focus();
-});
-
+    });
 </script>
+
 </body>
 </html>
