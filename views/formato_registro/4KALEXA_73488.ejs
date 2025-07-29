@@ -6,7 +6,6 @@
     <title>CAPTURA NÚMEROS DE SERIE</title>
     <link rel="stylesheet" href="/css/formato-b.css">
     <link rel="stylesheet" href="/css/escaneo.css">
-    <link rel="stylesheet" href="/css/escaneo.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <!-- Script de seguridad para usuario -->
@@ -34,8 +33,7 @@
               <p><strong>Instrucciones:</strong></p>
               <ul>
                 <li>Escanee o ingrese el número de serie (S/N).</li>
-                <li>Presione ENTER o haga clic en "Guardar" para registrar.</li>
-                <li>El sistema convertirá automáticamente a <strong>MAYÚSCULAS</strong>.</li>
+                <li>Al finalizar de capturar un lote, seleccione el botón<strong> FINALIZAR LOTE</strong>.</li>
               </ul>
             </div>
 
@@ -63,16 +61,8 @@
                 </select>
             </div>
 
-            <!-- Botón de guardado con el ID correcto -->
-            <button class="btn-confirmar" id="guardar-btn">
-                <i class="fas fa-save"></i> GUARDAR REGISTRO
-            </button>
-
             <button id="volver-btn" class="btn-secondary">
                 <i class="fas fa-arrow-left"></i> Volver
-            </button>
-            <button class="btn-completar" id="finalizar-lote-btn" style="display: none;">
-                <i class="fas fa-check-double"></i> FINALIZAR LOTE
             </button>
             <button class="btn-completar" id="finalizar-lote-btn" style="display: none;">
                 <i class="fas fa-check-double"></i> FINALIZAR LOTE
