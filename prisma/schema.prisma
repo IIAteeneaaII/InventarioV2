@@ -88,10 +88,11 @@ model User {
   updatedAt DateTime   @updatedAt
 }
 
-// Catálogo de SKUs/Productos
+// Catálogo de SKUs
 model CatalogoSKU {
   id          Int     @id
   nombre      String  @unique
+  skuItem     String? @unique  // Añadir este campo
   descripcion String?
   lotes       Lote[]
   modems      Modem[]

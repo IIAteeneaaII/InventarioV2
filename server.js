@@ -81,7 +81,7 @@ app.use(userDataMiddleware);
 app.use('/admin', verificarRol(['UAI']), adminRoutes);
 
 // --- API protegida (inventario, lotes, modems, etc) ---
-app.use('/api', inventoryRoutes);
+//app.use('/api', inventoryRoutes);
 
 // --- Rutas para logs principales, dashboard, etc ---
 app.use('/api', apiRoutes);

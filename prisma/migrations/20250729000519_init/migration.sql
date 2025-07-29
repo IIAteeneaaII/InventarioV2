@@ -39,6 +39,7 @@ CREATE TABLE "User" (
 CREATE TABLE "CatalogoSKU" (
     "id" INTEGER NOT NULL,
     "nombre" TEXT NOT NULL,
+    "skuItem" TEXT,
     "descripcion" TEXT,
 
     CONSTRAINT "CatalogoSKU_pkey" PRIMARY KEY ("id")
@@ -160,6 +161,9 @@ CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "CatalogoSKU_nombre_key" ON "CatalogoSKU"("nombre");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CatalogoSKU_skuItem_key" ON "CatalogoSKU"("skuItem");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "VistaPorSKU_skuId_rol_key" ON "VistaPorSKU"("skuId", "rol");

@@ -25,10 +25,11 @@ async function main() {
   for (const item of skuData) {
     await prisma.catalogoSKU.upsert({
       where: { nombre: item.nombre },
-      update: {},
+      update: { skuItem: item.skuItem },
       create: {
         id: item.id,
-        nombre: item.nombre
+        nombre: item.nombre,
+        skuItem: item.skuItem
       }
     });
   }

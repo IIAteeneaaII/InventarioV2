@@ -4,20 +4,30 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const { verificarAuth, verificarRol } = require('../controllers/authController');
 const registroController = require('../controllers/registroController');
+const formatoController = require('../controllers/formatoController');
 const procesamientoController = require('../controllers/procesamientoController.js');
 const empaqueController = require('../controllers/empaqueController');
 const scrapController = require('../controllers/scrapController');
 const loteController = require('../controllers/loteController');
 const { replaceBigIntWithNumber } = require('../utils/dataUtils');
 
-// Proteger todas las rutas API con autenticación
-router.use(verificarAuth);
+// Ruta para guardar registros de los formatos de captura (empaque, registro, general, etc.)
+router.post('/registros',
+  verificarRol(['UReg', 'UEN', 'UA', 'UTI', 'UR', 'UC', 'UE', 'ULL']), // Roles que pueden escanear
+  formatoController.guardarRegistro
+);
+
+// Ruta para finalizar un lote
+router.post('/lotes/finalizar', formatoController.finalizarLote);
 
 // Rutas de registro
 router.post('/registro/modem', verificarRol(['UA', 'UReg']), registroController.registrarModem);
 router.post('/registro/confirmar-lote', verificarRol(['UA', 'UReg']), registroController.confirmarLote);
 router.post('/registro/scrap', verificarRol(['UA', 'UReg']), registroController.registrarScrap);
 router.get('/registro/historial/:loteId', registroController.obtenerHistorial);
+
+// Añadir este endpoint para obtener registros por SKU
+// ...existing code...
 
 // Rutas de procesamiento
 router.post('/proceso/modem', verificarRol(['UTI', 'UR', 'UC', 'ULL', 'UV']), procesamientoController.procesarModem);
@@ -496,4 +506,114 @@ router.get('/stats/etapas-proceso', async (req, res) => {
   }
 });
 
+// ...existing code...
+// Endpoint para obtener registros por SKU (versión mejorada)
+router.get('/registros/sku/:sku', verificarAuth, async (req, res) => {
+  try {
+    const { sku } = req.params;
+    const limit = parseInt(req.query.limit) || 20;
+    const userId = req.user.id;
+    
+    // Obtener el ID del SKU - primero intentamos con búsqueda exacta por skuItem
+    let catalogoSKU = await prisma.catalogoSKU.findFirst({
+      where: { skuItem: sku }
+    });
+    
+    // Si no encontramos, intentamos con búsqueda flexible
+    if (!catalogoSKU) {
+      const resultados = await prisma.$queryRaw`
+        SELECT * FROM "CatalogoSKU" 
+        WHERE nombre LIKE ${`%${sku}%`}
+        OR id = ${parseInt(sku, 10) || 0}
+        OR "skuItem" = ${sku}
+        LIMIT 1
+      `;
+      
+      if (resultados && resultados.length > 0) {
+        catalogoSKU = resultados[0];
+      }
+    }
+    
+    if (!catalogoSKU) {
+      return res.status(404).json({ 
+        error: `No existe un catálogo para el SKU ${sku}.`
+      });
+    }
+
+    const skuId = catalogoSKU.id;
+    console.log(`Buscando registros para SKU ID: ${skuId}, Usuario ID: ${userId}`);
+    
+    // Obtener registros específicos para este SKU y usuario
+    const registros = await prisma.registro.findMany({
+      where: {
+        modem: {
+          skuId: skuId
+        },
+        userId: userId
+      },
+      include: {
+        user: {
+          select: { 
+            id: true, 
+            nombre: true 
+          }
+        },
+        modem: {
+          select: {
+            sn: true,
+            sku: {
+              select: {
+                nombre: true,
+                skuItem: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      },
+      take: limit
+    });
+    
+    console.log(`Encontrados ${registros.length} registros para SKU ${sku}`);
+    
+    // Renovar la sesión
+    if (req.session) {
+      req.session.touch();
+    }
+    
+    res.json({ 
+      success: true,
+      registros: registros,
+      skuInfo: {
+        id: catalogoSKU.id,
+        nombre: catalogoSKU.nombre,
+        skuItem: catalogoSKU.skuItem
+      }
+    });
+  } catch (error) {
+    console.error('Error al obtener registros por SKU:', error);
+    res.status(500).json({ error: 'Error interno al obtener registros.' });
+  }
+});
+
+// Endpoint de prueba para mantener la sesión activa
+router.get('/test', (req, res) => {
+  // Renovar la sesión
+  if (req.session) {
+    req.session.touch();
+  }
+  
+  res.json({ 
+    message: 'API funcionando correctamente',
+    timestamp: new Date().toISOString(),
+    user: req.user ? {
+      id: req.user.id,
+      nombre: req.user.nombre,
+      rol: req.user.rol
+    } : null
+  });
+});
+module.exports = router;
 module.exports = router;
