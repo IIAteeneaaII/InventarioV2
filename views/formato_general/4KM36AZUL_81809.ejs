@@ -74,8 +74,19 @@
                         </tr>
                     </thead>
                    <tbody id="registros-body">
-                        <!-- Registros se agregarán dinámicamente -->
-                    </tbody>
+                        <!-- El historial de registros se carga aquí desde el backend -->
+                        <% if (typeof registros !== 'undefined' && registros.length > 0) { %>
+                          <% registros.forEach(registro => { %>
+                            <tr class="<%= registro.estado.includes('SCRAP') ? 'fila-scrap' : '' %>">
+                              <td><%= registro.user.nombre %></td>
+                              <td><%= registro.sn %></td>
+                              <td><%= new Date(registro.createdAt).toLocaleString('es-MX') %></td>
+                              <td><%= registro.estado %></td>
+                              <td><%= registro.motivoScrap ? registro.motivoScrap.replace(/_/g, ' ') : 'N/A' %></td>
+                            </tr>
+                          <% }); %>
+                        <% } %>                   
+                     </tbody>
                 </table>
             </div>
         </div>
