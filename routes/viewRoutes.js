@@ -4,6 +4,7 @@ const { verificarAuth, verificarRol } = require('../controllers/authController')
 const { PrismaClient, FaseProceso } = require('@prisma/client');
 const prisma = new PrismaClient();
 const adminController = require('../controllers/adminController');
+const cosmeticaController = require('../controllers/cosmeticaController');
 const { vistaEditarUsuario } = require('../controllers/adminController');
 const fs = require('fs');
 const path = require('path');
@@ -118,17 +119,9 @@ router.get('/registro',
 
 // Ruta principal para selección de lote
 router.get('/seleccionlote', 
-  verificarRol(['UA', 'UV', 'UTI', 'UR', 'UC', 'UE', 'ULL','UReg']),
+  verificarRol(['UA', 'UV', 'UTI', 'UR', 'UE', 'UEN', 'UReg']),
   (req, res) => {
     res.render('seleccion_modelo', { user: req.user });
-  }
-);
-
-// Ruta alternativa para compatibilidad con guion bajo
-router.get('/seleccionar_modelo', 
-  verificarRol(['UA', 'UV', 'UTI', 'UR', 'UC', 'UE', 'ULL','UReg']),
-  (req, res) => {
-    res.redirect('/seleccionlote');
   }
 );
 
@@ -163,20 +156,10 @@ router.get('/testini',
   }
 );
 
-// Dashboard para rol retest
-router.get('/retest', 
-  verificarRol(['UR']),
-  (req, res) => {
-      res.render('seleccion_lote', { user: req.user });
-  }
-);
-
-// Dashboard para rol Cosmetica
-router.get('/cosmetica', 
-  verificarRol(['UC']),
-  (req, res) => {
-      res.render('seleccion_lote', { user: req.user });
-  }
+// Dashboard para rol Cosmetica (NUEVA VISTA DE INVENTARIO)
+router.get('/cosmetica',
+  verificarRol(['UC', 'UV', 'UAI']),
+  cosmeticaController.renderInventario
 );
 
 // Dashboard para rol Empaque
@@ -189,7 +172,7 @@ router.get('/empaque',
 
 // Dashboard para Liberacion y limpieza
 router.get('/lineaLote', 
-  verificarRol(['ULL']),
+  verificarRol(['UEN']), // UEN ahora hace Ensamble
   (req, res) => {
       res.render('seleccion_lote', { user: req.user });
   }
@@ -399,13 +382,11 @@ router.get('/vista/:formato/:sku', (req, res) => {
 const getFaseFromRol = (rol) => {
   const mapeo = {
     UReg: FaseProceso.REGISTRO,
-    UEN: FaseProceso.EMPAQUE,
+    UEN: FaseProceso.ENSAMBLE,
     UE: FaseProceso.EMPAQUE,
     UTI: FaseProceso.TEST_INICIAL,
     UR: FaseProceso.RETEST,
-    UC: FaseProceso.COSMETICA,
-    ULL: FaseProceso.LIBERACION_LIMPIEZA,
-    UA: FaseProceso.REGISTRO,
+    UA: FaseProceso.REGISTRO
   };
   return mapeo[rol] || null;
 };

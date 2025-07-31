@@ -13,9 +13,9 @@ exports.procesarModem = async (req, res) => {
     const userRol = req.user.rol;
     
     // Roles permitidos para procesamiento
-    const rolesPermitidos = ['UTI', 'UR', 'UC', 'ULL', 'UV'];
+    const rolesPermitidos = ['UTI', 'UEN', 'UR', 'UV'];
     
-    if (!rolesPermitidos.includes(userRol)) {
+    if (!rolesPermitidos.includes(userRol) && userRol !== 'UV') {
       return res.status(403).json({
         success: false,
         message: 'No tienes permiso para procesar modems'
@@ -79,9 +79,6 @@ exports.procesarModem = async (req, res) => {
     switch (transicion.estadoHacia.nombre) {
       case 'TEST_INICIAL':
         nuevaFase = 'TEST_INICIAL';
-        break;
-      case 'COSMETICA':
-        nuevaFase = 'COSMETICA';
         break;
       case 'LIBERACION_LIMPIEZA':
         nuevaFase = 'LIBERACION_LIMPIEZA';

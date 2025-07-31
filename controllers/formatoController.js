@@ -9,11 +9,9 @@ const getRolConfig = (rol) => {
   const configs = {
     UReg: { fase: FaseProceso.REGISTRO, carpeta: 'formato_registro' },
     UE: { fase: FaseProceso.EMPAQUE, carpeta: 'formato_empaque' },
-    UEN: { fase: FaseProceso.EMPAQUE, carpeta: 'formato_empaque' },
+    UEN: { fase: FaseProceso.ENSAMBLE, carpeta: 'formato_general' },
     UTI: { fase: FaseProceso.TEST_INICIAL, carpeta: 'formato_general' },
     UR: { fase: FaseProceso.RETEST, carpeta: 'formato_general' },
-    UC: { fase: FaseProceso.COSMETICA, carpeta: 'formato_general' },
-    ULL: { fase: FaseProceso.LIBERACION_LIMPIEZA, carpeta: 'formato_general' },
     UA: { fase: FaseProceso.REGISTRO, carpeta: 'formato_registro' }
   };
   

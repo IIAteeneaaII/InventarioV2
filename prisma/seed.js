@@ -39,9 +39,8 @@ async function main() {
   const estados = [
     { id: 0, nombre: "REGISTRO", codigoInterno: "REG" },
     { id: 1, nombre: "TEST_INICIAL", codigoInterno: "TI" },
-    { id: 2, nombre: "COSMETICA", codigoInterno: "COS" },
-    { id: 3, nombre: "LIBERACION_LIMPIEZA", codigoInterno: "LL" },
-    { id: 4, nombre: "RETEST", codigoInterno: "RET" },
+    { id: 2, nombre: "ENSAMBLE", codigoInterno: "ENS" }, // Nuevo estado
+    { id: 4, nombre: "RETEST", codigoInterno: "RET" }, // Se mantiene ID para consistencia
     { id: 5, nombre: "EMPAQUE", codigoInterno: "EMP" },
     { id: 6, nombre: "SCRAP", codigoInterno: "SCR" },
     { id: 7, nombre: "REPARACION", codigoInterno: "REP" },
@@ -56,6 +55,26 @@ async function main() {
   }
   console.log('Estados seed completado');
 
+  // Seed de InventarioCosmetico
+  const insumos = ['CAPUCHONES', 'BASES', 'TAPAS'];
+  const skus = await prisma.catalogoSKU.findMany();
+
+  for (const sku of skus) {
+    for (const insumo of insumos) {
+      await prisma.inventarioCosmetico.upsert({
+        where: { skuId_tipoInsumo: { skuId: sku.id, tipoInsumo: insumo } },
+        update: {},
+        create: {
+          skuId: sku.id,
+          tipoInsumo: insumo,
+          cantidad: 0
+        }
+      });
+    }
+  }
+  console.log('InventarioCosmetico seed completado');
+
+
   // Obtener todos los estados y crear un mapa nombre -> id
   const estadosDb = await prisma.estado.findMany();
   const estadoMap = {};
@@ -64,16 +83,13 @@ async function main() {
   // Seed de Transiciones permitidas usando los IDs de estado
   const transiciones = [];
   let idTrans = 1;
-  // Flujo principal (ahora inicia en Almacen)
-  const flow = [
-    "REGISTRO", "TEST_INICIAL", "COSMETICA", "LIBERACION_LIMPIEZA", "RETEST", "EMPAQUE"
-  ];
+  // Flujo principal actualizado
+  const flow = ["REGISTRO", "TEST_INICIAL", "ENSAMBLE", "RETEST", "EMPAQUE"];
   // Define los roles permitidos para cada transición
   const rolesPorTransicion = {
     "REGISTRO->TEST_INICIAL": "UA,UV", // Almacén y superadmin
-    "TEST_INICIAL->COSMETICA": "UTI,UV",
-    "COSMETICA->LIBERACION_LIMPIEZA": "UC,UV",
-    "LIBERACION_LIMPIEZA->RETEST": "ULL,UV",
+    "TEST_INICIAL->ENSAMBLE": "UTI,UV", // Nuevo flujo
+    "ENSAMBLE->RETEST": "UEN,UV", // UEN es responsable de Ensamble
     "RETEST->EMPAQUE": "UR,UV",
     "EMPAQUE->SCRAP": "UE,UV",
     // Scrap y Reparacion pueden tener reglas propias
@@ -96,7 +112,7 @@ async function main() {
 
     // Scrap (permitir mandar a scrap desde cualquier estado excepto Empaque)
     if (from !== "EMPAQUE") {
-      let rolesScrap = "UA,UTI,UC,ULL,UR,UE,UReg,UV";
+      let rolesScrap = "UA,UTI,UR,UE,UReg,UV"; // Se quita UC, ULL, UEN
       if (from === "REGISTRO") rolesScrap = "UA,UV";
       transiciones.push({
         id: idTrans++,

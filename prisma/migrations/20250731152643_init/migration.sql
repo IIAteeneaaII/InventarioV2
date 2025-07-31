@@ -1,5 +1,5 @@
 -- CreateEnum
-CREATE TYPE "Rol" AS ENUM ('UAI', 'UA', 'UV', 'UReg', 'UTI', 'UR', 'UC', 'UE', 'ULL', 'UEN');
+CREATE TYPE "Rol" AS ENUM ('UAI', 'UA', 'UV', 'UReg', 'UTI', 'UR', 'UC', 'UE', 'UEN');
 
 -- CreateEnum
 CREATE TYPE "EstadoRegistro" AS ENUM ('SN_OK', 'SCRAP_COSMETICO', 'SCRAP_ELECTRONICO', 'SCRAP_INFESTACION', 'REPARACION');
@@ -8,7 +8,13 @@ CREATE TYPE "EstadoRegistro" AS ENUM ('SN_OK', 'SCRAP_COSMETICO', 'SCRAP_ELECTRO
 CREATE TYPE "EstadoLote" AS ENUM ('EN_PROCESO', 'PAUSADO', 'COMPLETADO', 'CANCELADO');
 
 -- CreateEnum
-CREATE TYPE "FaseProceso" AS ENUM ('REGISTRO', 'TEST_INICIAL', 'COSMETICA', 'LIBERACION_LIMPIEZA', 'ENSAMBLE', 'RETEST', 'EMPAQUE');
+CREATE TYPE "TipoInsumo" AS ENUM ('CAPUCHONES', 'BASES', 'TAPAS');
+
+-- CreateEnum
+CREATE TYPE "TipoMovimiento" AS ENUM ('ENTRADA', 'SALIDA');
+
+-- CreateEnum
+CREATE TYPE "FaseProceso" AS ENUM ('REGISTRO', 'TEST_INICIAL', 'ENSAMBLE', 'RETEST', 'EMPAQUE', 'SCRAP', 'REPARACION');
 
 -- CreateEnum
 CREATE TYPE "MotivoScrap" AS ENUM ('FUERA_DE_RANGO', 'DEFECTO_SW', 'SIN_REPARACION', 'COSMETICA', 'INFESTADO', 'OTRO');
@@ -43,16 +49,6 @@ CREATE TABLE "CatalogoSKU" (
     "descripcion" TEXT,
 
     CONSTRAINT "CatalogoSKU_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "VistaPorSKU" (
-    "id" SERIAL NOT NULL,
-    "skuId" INTEGER NOT NULL,
-    "rol" "Rol" NOT NULL,
-    "vista" TEXT NOT NULL,
-
-    CONSTRAINT "VistaPorSKU_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -138,6 +134,30 @@ CREATE TABLE "Estado" (
 );
 
 -- CreateTable
+CREATE TABLE "InventarioCosmetico" (
+    "id" SERIAL NOT NULL,
+    "skuId" INTEGER NOT NULL,
+    "tipoInsumo" "TipoInsumo" NOT NULL,
+    "cantidad" INTEGER NOT NULL DEFAULT 0,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "InventarioCosmetico_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "RegistroInsumo" (
+    "id" SERIAL NOT NULL,
+    "tipoMovimiento" "TipoMovimiento" NOT NULL,
+    "tipoInsumo" "TipoInsumo" NOT NULL,
+    "skuId" INTEGER NOT NULL,
+    "cantidad" INTEGER NOT NULL,
+    "responsableId" INTEGER NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "RegistroInsumo_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "TransicionEstado" (
     "id" SERIAL NOT NULL,
     "estadoDesdeId" INTEGER NOT NULL,
@@ -166,9 +186,6 @@ CREATE UNIQUE INDEX "CatalogoSKU_nombre_key" ON "CatalogoSKU"("nombre");
 CREATE UNIQUE INDEX "CatalogoSKU_skuItem_key" ON "CatalogoSKU"("skuItem");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "VistaPorSKU_skuId_rol_key" ON "VistaPorSKU"("skuId", "rol");
-
--- CreateIndex
 CREATE UNIQUE INDEX "Lote_numero_key" ON "Lote"("numero");
 
 -- CreateIndex
@@ -190,6 +207,18 @@ CREATE UNIQUE INDEX "Estado_nombre_key" ON "Estado"("nombre");
 CREATE UNIQUE INDEX "Estado_codigoInterno_key" ON "Estado"("codigoInterno");
 
 -- CreateIndex
+CREATE INDEX "InventarioCosmetico_skuId_idx" ON "InventarioCosmetico"("skuId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "InventarioCosmetico_skuId_tipoInsumo_key" ON "InventarioCosmetico"("skuId", "tipoInsumo");
+
+-- CreateIndex
+CREATE INDEX "RegistroInsumo_skuId_idx" ON "RegistroInsumo"("skuId");
+
+-- CreateIndex
+CREATE INDEX "RegistroInsumo_responsableId_idx" ON "RegistroInsumo"("responsableId");
+
+-- CreateIndex
 CREATE INDEX "TransicionEstado_estadoDesdeId_idx" ON "TransicionEstado"("estadoDesdeId");
 
 -- CreateIndex
@@ -197,9 +226,6 @@ CREATE INDEX "TransicionEstado_estadoHaciaId_idx" ON "TransicionEstado"("estadoH
 
 -- CreateIndex
 CREATE UNIQUE INDEX "TransicionEstado_estadoDesdeId_nombreEvento_key" ON "TransicionEstado"("estadoDesdeId", "nombreEvento");
-
--- AddForeignKey
-ALTER TABLE "VistaPorSKU" ADD CONSTRAINT "VistaPorSKU_skuId_fkey" FOREIGN KEY ("skuId") REFERENCES "CatalogoSKU"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Lote" ADD CONSTRAINT "Lote_skuId_fkey" FOREIGN KEY ("skuId") REFERENCES "CatalogoSKU"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -233,6 +259,15 @@ ALTER TABLE "Registro" ADD CONSTRAINT "Registro_modemId_fkey" FOREIGN KEY ("mode
 
 -- AddForeignKey
 ALTER TABLE "Log" ADD CONSTRAINT "Log_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "InventarioCosmetico" ADD CONSTRAINT "InventarioCosmetico_skuId_fkey" FOREIGN KEY ("skuId") REFERENCES "CatalogoSKU"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RegistroInsumo" ADD CONSTRAINT "RegistroInsumo_skuId_fkey" FOREIGN KEY ("skuId") REFERENCES "CatalogoSKU"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RegistroInsumo" ADD CONSTRAINT "RegistroInsumo_responsableId_fkey" FOREIGN KEY ("responsableId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "TransicionEstado" ADD CONSTRAINT "TransicionEstado_estadoDesdeId_fkey" FOREIGN KEY ("estadoDesdeId") REFERENCES "Estado"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

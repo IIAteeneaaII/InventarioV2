@@ -5,6 +5,7 @@ const prisma = new PrismaClient();
 const { verificarAuth, verificarRol } = require('../controllers/authController');
 const registroController = require('../controllers/registroController');
 const formatoController = require('../controllers/formatoController');
+const cosmeticaController = require('../controllers/cosmeticaController');
 const procesamientoController = require('../controllers/procesamientoController.js');
 const empaqueController = require('../controllers/empaqueController');
 const scrapController = require('../controllers/scrapController');
@@ -13,7 +14,7 @@ const { replaceBigIntWithNumber } = require('../utils/dataUtils');
 
 // Ruta para guardar registros de los formatos de captura (empaque, registro, general, etc.)
 router.post('/registros',
-  verificarRol(['UReg', 'UEN', 'UA', 'UTI', 'UR', 'UC', 'UE', 'ULL']), // Roles que pueden escanear
+  verificarRol(['UReg', 'UA', 'UTI', 'UR', 'UE', 'UEN']), // UEN ahora escanea
   formatoController.guardarRegistro
 );
 
@@ -30,7 +31,7 @@ router.get('/registro/historial/:loteId', registroController.obtenerHistorial);
 // ...existing code...
 
 // Rutas de procesamiento
-router.post('/proceso/modem', verificarRol(['UTI', 'UR', 'UC', 'ULL', 'UV']), procesamientoController.procesarModem);
+router.post('/proceso/modem', verificarRol(['UTI', 'UR', 'UEN', 'UV']), procesamientoController.procesarModem);
 router.post('/proceso/reparacion', verificarRol(['UR', 'UTI', 'UV']), procesamientoController.registrarReparacion);
 router.post('/proceso/scrap', procesamientoController.registrarScrapProceso);
 
@@ -39,6 +40,9 @@ router.post('/empaque/modem', verificarRol(['UE']), empaqueController.registrarM
 router.post('/empaque/cerrar-lote', verificarRol(['UE']), empaqueController.cerrarLoteSalida);
 router.post('/scrap/registrar-salida', verificarRol(['UE']), scrapController.registrarScrapSalida);
 router.post('/scrap/cerrar-lote', verificarRol(['UE']), scrapController.cerrarLoteScrap);
+
+// Rutas de cosmética
+router.post('/cosmetica/movimiento', verificarRol(['UC', 'UAI']), cosmeticaController.registrarMovimiento);
 
 // Rutas de consulta
 router.get('/lotes/activos', loteController.obtenerLotesActivos);

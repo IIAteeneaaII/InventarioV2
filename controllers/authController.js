@@ -68,11 +68,14 @@ exports.login = async (req, res) => {
     setFlashMessage(res, '¡Inicio de sesión éxitoso.', 'success');
     
     // Redirección según rol
-    const rolesSeleccionLote = ['UA', 'UV', 'UReg', 'UTI', 'UR', 'UC', 'UE', 'ULL'];
+    const rolesSeleccionLote = ['UA', 'UV', 'UReg', 'UTI', 'UR', 'UE', 'UEN'];
     let redirectTo;
     switch (user.rol) {
       case 'UAI':
         redirectTo = '/adminventario';
+        break;
+      case 'UC':
+        redirectTo = '/cosmetica';
         break;
       case 'UReg':
         redirectTo = '/seleccionlote';
