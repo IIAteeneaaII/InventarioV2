@@ -192,6 +192,17 @@ exports.guardarRegistro = async (req, res) => {
           error: `Módem con S/N ${sn} no encontrado. Debe ser registrado primero.` 
         });
       }
+      // Verificar que el SKU del módem coincida con el SKU que se está usando en esta vista
+      const skuModem = await prisma.catalogoSKU.findUnique({
+        where: { id: modem.skuId },
+      });
+
+      if (!skuModem || skuModem.skuItem.toString() !== skuNumber.toString()) {
+        return res.status(400).json({
+          error: `El módem escaneado pertenece a un SKU diferente (${skuModem?.nombre || 'desconocido'}) y no puede registrarse en este proceso.`,
+        });
+      }
+
       
       // Obtener el lote activo para incluir su ID en la respuesta
       loteActivo = await prisma.lote.findUnique({
