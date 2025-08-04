@@ -1,6 +1,6 @@
 // services/modemService.js
 
-import { PrismaClient } from '@prisma/client';
+const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 /**
@@ -10,7 +10,7 @@ const prisma = new PrismaClient();
  * @param {String} estadoNuevo - Estado nuevo (opcional, para lógica extendida de reparaciones).
  * @throws Error si la transición es inválida.
  */
-export async function validarTransicionFase(faseActual, faseNueva, estadoNuevo = null) {
+exports.validarTransicionFase = async function(faseActual, faseNueva, estadoNuevo = null) {
   const ordenes = {
     ALMACEN: 1,
     TEST_INICIAL: 2,
@@ -47,7 +47,7 @@ export async function validarTransicionFase(faseActual, faseNueva, estadoNuevo =
  * @param {Object} modemData - Datos del nuevo modem
  * @returns {Promise<Object>} Modem creado
  */
-export async function crearModem(modemData) {
+exports.crearModem = async function(modemData) {
   try {
     const nuevoModem = await prisma.modem.create({
       data: modemData
@@ -65,7 +65,7 @@ export async function crearModem(modemData) {
  * @param {Object} datosActualizacion - Datos a actualizar
  * @returns {Promise<Object>} Modem actualizado
  */
-export async function actualizarModem(modemId, datosActualizacion) {
+exports.actualizarModem = async function(modemId, datosActualizacion) {
   try {
     const modemActualizado = await prisma.modem.update({
       where: { id: modemId },
@@ -86,7 +86,7 @@ export async function actualizarModem(modemId, datosActualizacion) {
  * @param {String} sn - Número de serie a buscar
  * @returns {Promise<Object|null>} Modem encontrado o null
  */
-export async function buscarPorSN(sn) {
+exports.buscarPorSN = async function(sn) {
   try {
     const modem = await prisma.modem.findUnique({
       where: { sn },
@@ -113,7 +113,7 @@ export async function buscarPorSN(sn) {
  * @param {Object} options - Opciones adicionales
  * @returns {Promise<Array>} Lista de modems
  */
-export async function buscarPorLote(loteId, options = {}) {
+exports.buscarPorLote = async function(loteId, options = {}) {
   try {
     const { tipoLote = 'entrada' } = options;
     
@@ -153,7 +153,7 @@ export async function buscarPorLote(loteId, options = {}) {
  * @param {String} tipoLote - Tipo de lote ('entrada' o 'salida')
  * @returns {Promise<Object>} Estadísticas del lote
  */
-export async function obtenerEstadisticasPorLote(loteId, tipoLote = 'entrada') {
+exports.obtenerEstadisticasPorLote = async function(loteId, tipoLote = 'entrada') {
   try {
     // Definir campo de lote según el tipo
     const loteCampo = tipoLote.toLowerCase() === 'salida' ? 'loteSalidaId' : 'loteId';
@@ -200,7 +200,7 @@ export async function obtenerEstadisticasPorLote(loteId, tipoLote = 'entrada') {
  * @param {Number} skuId - ID del SKU
  * @returns {Promise<Object>} Resultado de la validación
  */
-export async function validarFormatoSN(sn, skuId) {
+exports.validarFormatoSN = async function(sn, skuId) {
   try {
     // Obtener el SKU
     const sku = await prisma.catalogoSKU.findUnique({

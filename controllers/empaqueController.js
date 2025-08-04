@@ -100,45 +100,56 @@ exports.registrarModemEmpaque = async (req, res) => {
       });
     }
     
-    // Actualizar el modem
-    const modemActualizado = await prisma.modem.update({
-      where: { id: modem.id },
-      data: {
-        estadoActualId: estadoEmpaque.id,
-        faseActual: 'EMPAQUE',
-        responsableId: userId,
-        loteSalidaId: loteSalida.id // Asignar al lote de salida
-      }
-    });
-    
-    // Crear registro de la acción
-    await prisma.registro.create({
-      data: {
-        sn: modem.sn,
-        fase: 'EMPAQUE',
-        estado: 'SN_OK',
-        userId,
-        loteId: loteSalida.id,
-        modemId: modem.id
-      }
-    });
-    
-    // Registrar en log
-    await logService.registrarAccion({
-      accion: 'EMPAQUE_MODEM',
-      entidad: 'Modem',
-      detalle: `SN: ${modem.sn}, Lote Salida: ${loteSalida.numero}`,
-      userId
-    });
-    
-    return res.status(200).json({
-      success: true,
-      message: 'Modem registrado en empaque exitosamente',
-      data: {
-        modem: modemActualizado,
-        loteSalida
-      }
-    });
+    try {
+      // Validar la transición de fase usando el servicio
+      await modemService.validarTransicionFase(modem.faseActual, 'EMPAQUE');
+      
+      // Actualizar el modem
+      const modemActualizado = await prisma.modem.update({
+        where: { id: modem.id },
+        data: {
+          estadoActualId: estadoEmpaque.id,
+          faseActual: 'EMPAQUE',
+          responsableId: userId,
+          loteSalidaId: loteSalida.id // Asignar al lote de salida
+        }
+      });
+      
+      // Crear registro de la acción
+      await prisma.registro.create({
+        data: {
+          sn: modem.sn,
+          fase: 'EMPAQUE',
+          estado: 'SN_OK',
+          userId,
+          loteId: loteSalida.id,
+          modemId: modem.id
+        }
+      });
+      
+      // Registrar en log
+      await logService.registrarAccion({
+        accion: 'EMPAQUE_MODEM',
+        entidad: 'Modem',
+        detalle: `SN: ${modem.sn}, Lote Salida: ${loteSalida.numero}`,
+        userId
+      });
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Modem registrado en empaque exitosamente',
+        data: {
+          modem: modemActualizado,
+          loteSalida
+        }
+      });
+    } catch (validationError) {
+      // Captura errores específicos de la validación de transición
+      return res.status(400).json({
+        success: false,
+        message: validationError.message
+      });
+    }
   } catch (error) {
     console.error('Error al registrar modem en empaque:', error);
     return res.status(500).json({
