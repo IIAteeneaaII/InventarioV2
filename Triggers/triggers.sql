@@ -110,19 +110,16 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Triggers para registrar_actividad_log
-DROP TRIGGER IF EXISTS log_modem_cambios ON "Modem";
 CREATE TRIGGER log_modem_cambios
 AFTER INSERT OR UPDATE OR DELETE ON "Modem"
 FOR EACH ROW
 EXECUTE FUNCTION registrar_actividad_log();
 
-DROP TRIGGER IF EXISTS log_lote_cambios ON "Lote";
 CREATE TRIGGER log_lote_cambios
 AFTER INSERT OR UPDATE OR DELETE ON "Lote"
 FOR EACH ROW
 EXECUTE FUNCTION registrar_actividad_log();
 
-DROP TRIGGER IF EXISTS log_registro_cambios ON "Registro";
 CREATE TRIGGER log_registro_cambios
 AFTER INSERT ON "Registro"
 FOR EACH ROW
@@ -172,7 +169,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS actualizar_lote_desde_modem ON "Modem";
 CREATE TRIGGER actualizar_lote_desde_modem
 AFTER INSERT OR UPDATE OF "estadoActualId" OR DELETE ON "Modem"
 FOR EACH ROW
@@ -198,7 +194,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS borrado_logico_modem_trigger ON "Modem";
 CREATE TRIGGER borrado_logico_modem_trigger
 BEFORE DELETE ON "Modem"
 FOR EACH ROW
@@ -234,7 +229,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS validar_transicion_modem ON "Modem";
 CREATE TRIGGER validar_transicion_modem
 BEFORE UPDATE OF "estadoActualId" ON "Modem"
 FOR EACH ROW
@@ -264,7 +258,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS registrar_transicion_modem ON "Modem";
 CREATE TRIGGER registrar_transicion_modem
 AFTER UPDATE OF "estadoActualId" ON "Modem"
 FOR EACH ROW
@@ -308,7 +301,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS validar_cambio_fase ON "Modem";
 CREATE TRIGGER validar_cambio_fase
 BEFORE UPDATE OF "faseActual" ON "Modem"
 FOR EACH ROW
@@ -337,7 +329,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS registrar_cambio_fase ON "Modem";
 CREATE TRIGGER registrar_cambio_fase
 AFTER UPDATE OF "faseActual" ON "Modem"
 FOR EACH ROW
