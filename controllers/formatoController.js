@@ -215,20 +215,23 @@ exports.guardarRegistro = async (req, res) => {
     let motivoScrapEnum = null;
     
     if (scrap && motivoScrap) {
-      estadoRegistro = 'SCRAP_COSMETICO';
-      // Mapear el valor de motivoScrap al enum MotivoScrap
+      // Mapear el valor de motivoScrap al enum MotivoScrap y al estado correspondiente
       switch (motivoScrap) {
         case 'cosmetica':
           motivoScrapEnum = 'COSMETICA';
+          estadoRegistro = 'SCRAP_COSMETICO';
           break;
         case 'electronica':
           motivoScrapEnum = 'FUERA_DE_RANGO';
+          estadoRegistro = 'SCRAP_ELECTRONICO';
           break;
         case 'infestado':
           motivoScrapEnum = 'INFESTADO';
+          estadoRegistro = 'SCRAP_INFESTACION';
           break;
         default:
           motivoScrapEnum = 'OTRO';
+          estadoRegistro = 'SCRAP_ELECTRONICO'; // Valor por defecto para otros casos
       }
     }
 

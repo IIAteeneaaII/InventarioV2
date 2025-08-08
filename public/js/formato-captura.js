@@ -6,6 +6,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const motivoScrapSelect = document.getElementById('motivo-scrap');
   const skuTitle = document.querySelector('.form-section h1');
   const statusIndicator = document.createElement('div');
+
+if (scrapInput && motivoScrapSelect) {
+  motivoScrapSelect.addEventListener('change', () => {
+    const motivo = motivoScrapSelect.value.trim();
+    if (motivo !== '') {
+      scrapInput.value = `SCRAP-${motivo}`;
+    } else {
+      scrapInput.value = '';
+    }
+  });
+}
+
   
   // Extraer el SKU directamente del título H1 que ya existe
   const skuText = skuTitle ? skuTitle.textContent.trim() : '';

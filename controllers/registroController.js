@@ -2,9 +2,13 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const modemService = require('../services/modemService');
 const logService = require('../services/logService');
+const logger = require('../utils/logger');
+
 
 // Registrar un nuevo modem
 exports.registrarModem = async (req, res) => {
+  console.log('--- INICIO registrarModem ---');
+  logger.info('Datos recibidos en registrarModem', { body: req.body });
   try {
     // Verificar que el usuario esté autenticado
     if (!req.user || !req.user.id) {
@@ -13,6 +17,8 @@ exports.registrarModem = async (req, res) => {
         message: 'Usuario no autenticado'
       });
     }
+  console.log('Datos recibidos en registrarModem:', req.body);
+
 
     const { sn, skuId } = req.body;
     const userId = req.user.id;
@@ -334,6 +340,7 @@ exports.registrarScrap = async (req, res) => {
     }
     
     // Mapear motivo y detalle a los valores del enum
+    console.log('Motivo recibido:', motivoScrap);
     const motivoScrapNormalizado = normalizarMotivoScrap(motivoScrap);
     const detalleScrapNormalizado = normalizarDetalleScrap(detalleScrap, motivoScrapNormalizado);
     
@@ -478,6 +485,8 @@ function normalizarMotivoScrap(motivoScrap) {
   if (!motivoScrap) return 'OTRO';
   
   const motivo = motivoScrap.toString().toUpperCase();
+  logger.info(`Valor normalizado de motivoScrap: ${motivo}`);
+
   
   if (motivo.includes('FUERA') || motivo.includes('RANGO') || motivo.includes('ELECTRO')) {
     return 'FUERA_DE_RANGO';
