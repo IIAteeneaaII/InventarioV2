@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>Historial de Número de Serie</title>
   <link rel="stylesheet" href="/css/admin_dashboard.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
   <div class="admin-container">
@@ -11,6 +12,7 @@
       <h2>Consultar historial de proceso</h2>
       <button id="btn-regresar" class="btn btn-regresar"><i class="fas fa-arrow-left"></i> Inicio</button>
     </div>
+
     <!-- Formulario de búsqueda -->
     <form class="form-busqueda-ns" method="GET" action="/historial">
       <div class="busqueda-input-wrap">
@@ -29,46 +31,62 @@
     <% if (sn) { %>
       <% if (fasesRealizadas.length > 0) { %>
         <h2>Historial del módem: <%= sn %></h2>
-<div class="timeline-horizontal">
-  <% const fases = ['REGISTRO', 'TEST_INICIAL', 'COSMETICA', 'LIBERACION_LIMPIEZA', 'RETEST', 'EMPAQUE']; %>
-  <% const iconMap = {
-    'REGISTRO': 'registro',
-    'TEST_INICIAL': 'testinicial',
-    'COSMETICA': 'cosmetica',
-    'LIBERACION_LIMPIEZA': 'liberacionlimpieza',
-    'RETEST': 'retest',
-    'EMPAQUE': 'empaque'
-  }; %>
 
-  <% fases.forEach((fase, index) => {
-    const completada = fasesRealizadas.includes(fase);
-    const esActual = fasesRealizadas[fasesRealizadas.length - 1] === fase;
-  %>
-    <div class="timeline-item 
-                <%= completada ? 'pasada' : 'omitida' %> 
-                <%= esActual ? 'actual' : '' %>">
-      <div class="timeline-icon">
-        <img src="/img/<%= iconMap[fase] %>.png" alt="<%= fase %>">
-      </div>
-      <div class="timeline-label"><%= fase.replace('_', ' ') %></div>
-    </div>
+        <div class="timeline-horizontal">
+          <% const fases = ['REGISTRO', 'TEST_INICIAL', 'COSMETICA', 'ENSAMBLE', 'RETEST', 'EMPAQUE']; %>
+          <% const iconMap = {
+            'REGISTRO': 'registro',
+            'TEST_INICIAL': 'testinicial',
+            'COSMETICA': 'cosmetica',
+            'ENSAMBLE': 'ensamble',
+            'RETEST': 'retest',
+            'EMPAQUE': 'empaque'
+          }; %>
 
-    <% if (index < fases.length - 1) { %>
-      <div class="timeline-line"></div>
-    <% } %>
-  <% }) %>
-</div>
+          <% 
+            const incluyeTestInicial = fasesRealizadas.includes('TEST_INICIAL');
+            const incluyeEnsamble = fasesRealizadas.includes('ENSAMBLE');
+          %>
+
+          <% fases.forEach((fase, index) => {
+            let completada = fasesRealizadas.includes(fase);
+            const esActual = fasesRealizadas[fasesRealizadas.length - 1] === fase;
+
+            // Reglas para COSMETICA
+            const mostrarMorado = (fase === 'COSMETICA' && incluyeTestInicial && !incluyeEnsamble);
+            if (fase === 'COSMETICA' && incluyeEnsamble) {
+              completada = true;
+            }
+          %>
+            <div class="timeline-item 
+                        <% if (mostrarMorado) { %> morado <% } else { %>
+                        <%= completada ? 'pasada' : 'omitida' %>
+                        <%= esActual ? ' actual' : '' %>
+                        <% } %>">
+              <div class="timeline-icon">
+                <img src="/img/<%= iconMap[fase] %>.png" alt="<%= fase %>">
+              </div>
+              <div class="timeline-label"><%= fase.replace('_', ' ') %></div>
+            </div>
+
+            <% if (index < fases.length - 1) { %>
+              <div class="timeline-line"></div>
+            <% } %>
+          <% }) %>
+        </div>
 
       <% } else { %>
-        <p class="status-message error">No se encontró historial para el número de serie <strong><%= sn %></strong>.</p>
+        <p class="status-message error">
+          No se encontró historial para el número de serie <strong><%= sn %></strong>.
+        </p>
       <% } %>
     <% } %>
   </div>
-  <script>
-  document.getElementById('btn-regresar').addEventListener('click', function () {
-    window.history.back();
-  });
-</script>
 
+  <script>
+    document.getElementById('btn-regresar').addEventListener('click', function () {
+      window.history.back();
+    });
+  </script>
 </body>
 </html>
