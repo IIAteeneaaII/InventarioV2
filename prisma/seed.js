@@ -55,26 +55,6 @@ async function main() {
   }
   console.log('Estados seed completado');
 
-  // Seed de InventarioCosmetico
-  const insumos = ['CAPUCHONES', 'BASES', 'TAPAS'];
-  const skus = await prisma.catalogoSKU.findMany();
-
-  for (const sku of skus) {
-    for (const insumo of insumos) {
-      await prisma.inventarioCosmetico.upsert({
-        where: { skuId_tipoInsumo: { skuId: sku.id, tipoInsumo: insumo } },
-        update: {},
-        create: {
-          skuId: sku.id,
-          tipoInsumo: insumo,
-          cantidad: 0
-        }
-      });
-    }
-  }
-  console.log('InventarioCosmetico seed completado');
-
-
   // Obtener todos los estados y crear un mapa nombre -> id
   const estadosDb = await prisma.estado.findMany();
   const estadoMap = {};

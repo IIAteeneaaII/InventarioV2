@@ -183,34 +183,9 @@ BEFORE DELETE ON "Modem"
 FOR EACH ROW
 EXECUTE FUNCTION borrado_logico_modem();
 
-CREATE OR REPLACE FUNCTION borrado_logico_lotesku()
-RETURNS TRIGGER AS $$
-BEGIN
-    IF TG_OP = 'DELETE' THEN
-        UPDATE "LoteSku" SET "deletedAt" = NOW(), "updatedAt" = NOW() WHERE id = OLD.id;
-        INSERT INTO "Log"(accion,entidad,detalle,"userId","createdAt")
-        VALUES (
-          'ELIMINAR_LOGICO',
-          'LoteSku',
-          'Eliminación lógica del loteSku: ' || OLD.numero,
-          1,
-          NOW()
-        );
-        RETURN NULL;
-    END IF;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-DROP TRIGGER IF EXISTS borrado_logico_lotesku_trigger ON "LoteSku";
-CREATE TRIGGER borrado_logico_lotesku_trigger
-BEFORE DELETE ON "LoteSku"
-FOR EACH ROW
-EXECUTE FUNCTION borrado_logico_lotesku();
 
 
-
--- 4. Validación y registro de transiciones de estado en Modem
+-- 4. Validación de transiciones de estado en Modem
 CREATE OR REPLACE FUNCTION validar_transicion_estado()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -247,15 +222,23 @@ FOR EACH ROW
 WHEN (OLD."estadoActualId" IS DISTINCT FROM NEW."estadoActualId")
 EXECUTE FUNCTION validar_transicion_estado();
 
+-- Modificado para usar Log en lugar de EstadoTransicion
 CREATE OR REPLACE FUNCTION registrar_transicion_estado()
 RETURNS TRIGGER AS $$
 BEGIN
-    INSERT INTO "EstadoTransicion"(
-      "modemId","estadoAnteriorId","estadoNuevoId",
-      fase,evento,"userId","createdAt"
+    -- Usar la tabla Log existente en lugar de EstadoTransicion
+    INSERT INTO "Log"(
+      accion,
+      entidad,
+      detalle,
+      "userId",
+      "createdAt"
     ) VALUES (
-      NEW.id, OLD."estadoActualId", NEW."estadoActualId",
-      NEW."faseActual", TG_ARGV[0], COALESCE(NEW."responsableId", 1), NOW()
+      'TRANSICION_ESTADO',
+      'Modem',
+      'Cambio de estado: ' || OLD."estadoActualId" || ' -> ' || NEW."estadoActualId" || ' para modem SN: ' || NEW.sn,
+      COALESCE(NEW."responsableId", 1),
+      NOW()
     );
     NEW."updatedAt" := NOW();
     RETURN NEW;
@@ -266,11 +249,11 @@ DROP TRIGGER IF EXISTS registrar_transicion_modem ON "Modem";
 CREATE TRIGGER registrar_transicion_modem
 AFTER UPDATE OF "estadoActualId" ON "Modem"
 FOR EACH ROW
-EXECUTE FUNCTION registrar_transicion_estado('ACTUALIZACION_ESTADO');
+EXECUTE FUNCTION registrar_transicion_estado();
 
 
 
--- 5. Validación y registro de transiciones de fase en Modem
+-- 5. Validación de transiciones de fase en Modem
 CREATE OR REPLACE FUNCTION validar_transicion_fase()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -315,14 +298,23 @@ FOR EACH ROW
 WHEN (OLD."faseActual" IS DISTINCT FROM NEW."faseActual")
 EXECUTE FUNCTION validar_transicion_fase();
 
+-- Modificado para usar Log en lugar de TransicionFase
 CREATE OR REPLACE FUNCTION registrar_transicion_fase()
 RETURNS TRIGGER AS $$
 BEGIN
-    INSERT INTO "TransicionFase"(
-      "modemId","faseDesde","faseHacia","userId","createdAt"
+    -- Usar la tabla Log existente en lugar de TransicionFase
+    INSERT INTO "Log"(
+      accion,
+      entidad,
+      detalle,
+      "userId",
+      "createdAt"
     ) VALUES (
-      NEW.id, OLD."faseActual", NEW."faseActual",
-      NEW."responsableId", NOW()
+      'TRANSICION_FASE',
+      'Modem',
+      'Cambio de fase: ' || OLD."faseActual" || ' -> ' || NEW."faseActual" || ' para modem SN: ' || NEW.sn,
+      NEW."responsableId",
+      NOW()
     );
     RETURN NEW;
 END;
