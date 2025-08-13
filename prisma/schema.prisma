@@ -209,12 +209,12 @@ model Estado {
 
 // Nuevo modelo para el inventario de insumos cosméticos
 model InventarioCosmetico {
-  id         Int        @id @default(autoincrement())
+  id         Int         @id @default(autoincrement())
   skuId      Int
   sku        CatalogoSKU @relation(fields: [skuId], references: [id])
   tipoInsumo TipoInsumo
-  cantidad   Int        @default(0)
-  updatedAt  DateTime   @updatedAt
+  cantidad   Int         @default(0)
+  updatedAt  DateTime    @updatedAt
 
   @@unique([skuId, tipoInsumo])
   @@index([skuId])
@@ -235,7 +235,6 @@ model RegistroInsumo {
   @@index([skuId])
   @@index([responsableId])
 }
-
 
 // Transiciones permitidas entre estados
 model TransicionEstado {
