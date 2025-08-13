@@ -1,4 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
+const { PrismaClient, EstadoRegistro, MotivoScrap, DetalleScrap, FaseProceso } = require('@prisma/client');
 const prisma = new PrismaClient();
 const modemService = require('../services/modemService');
 const logService = require('../services/logService');
@@ -302,8 +302,8 @@ exports.registrarScrap = async (req, res) => {
       });
     }
     
-    // Verificar que el usuario tenga rol permitido
-    if (userRol !== 'UA' && userRol !== 'UReg') {
+    // Verificar que el usuario tenga rol permitido y fase REGISTRO
+    if ((userRol !== 'UA' && userRol !== 'UReg')) {
       return res.status(403).json({
         success: false,
         message: 'No tienes permiso para registrar scraps en esta fase'
@@ -340,34 +340,36 @@ exports.registrarScrap = async (req, res) => {
     }
     
     // Mapear motivo y detalle a los valores del enum
-    console.log('Motivo recibido:', motivoScrap);
-    const motivoScrapNormalizado = normalizarMotivoScrap(motivoScrap);
-    const detalleScrapNormalizado = normalizarDetalleScrap(detalleScrap, motivoScrapNormalizado);
-    
+    const motivoEnum = (() => {
+      const m = normalizarMotivoScrap(motivoScrap).toUpperCase();
+      if (m === 'COSMETICA') return MotivoScrap.COSMETICA;
+      if (m === 'INFESTADO') return MotivoScrap.INFESTADO;
+      return MotivoScrap.FUERA_DE_RANGO;
+    })();
+    const detalleEnum = (() => {
+      const d = normalizarDetalleScrap(detalleScrap, motivoEnum);
+      switch (d) {
+        case 'CIRCUITO_OK_BASE_NOK': return DetalleScrap.CIRCUITO_OK_BASE_NOK;
+        case 'BASE_OK_CIRCUITO_NOK': return DetalleScrap.BASE_OK_CIRCUITO_NOK;
+        case 'INFESTACION': return DetalleScrap.INFESTACION;
+        default: return DetalleScrap.OTRO;
+      }
+    })();
     // Determinar el estado de registro según el motivo
-    let estadoRegistro;
-    switch (motivoScrapNormalizado) {
-      case 'COSMETICA':
-        estadoRegistro = 'SCRAP_COSMETICO';
-        break;
-      case 'FUERA_DE_RANGO':
-        estadoRegistro = 'SCRAP_ELECTRONICO';
-        break;
-      case 'INFESTADO':
-        estadoRegistro = 'SCRAP_INFESTACION';
-        break;
-      default:
-        estadoRegistro = 'SCRAP_ELECTRONICO';
-    }
+    const estadoRegistro = motivoEnum === MotivoScrap.COSMETICA
+      ? EstadoRegistro.SCRAP_COSMETICO
+      : motivoEnum === MotivoScrap.INFESTADO
+        ? EstadoRegistro.SCRAP_INFESTACION
+        : EstadoRegistro.SCRAP_ELECTRONICO;
     
     // Actualizar el modem a estado de scrap
     const modemActualizado = await prisma.modem.update({
       where: { id: modem.id },
       data: {
         estadoActualId: estadoScrap.id,
-        faseActual: 'SCRAP',
-        motivoScrap: motivoScrapNormalizado,
-        detalleScrap: detalleScrapNormalizado,
+        faseActual: FaseProceso.SCRAP,
+        motivoScrap: motivoEnum,
+        detalleScrap: detalleEnum,
         updatedAt: new Date()
       }
     });
@@ -376,10 +378,10 @@ exports.registrarScrap = async (req, res) => {
     await prisma.registro.create({
       data: {
         sn: modem.sn,
-        fase: 'SCRAP',
+        fase: FaseProceso.SCRAP,
         estado: estadoRegistro,
-        motivoScrap: motivoScrapNormalizado,
-        detalleScrap: detalleScrapNormalizado,
+        motivoScrap: motivoEnum,
+        detalleScrap: detalleEnum,
         userId,
         loteId: modem.loteId,
         modemId: modem.id

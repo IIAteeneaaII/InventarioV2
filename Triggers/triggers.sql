@@ -1,3 +1,115 @@
+-- Limpieza de triggers existentes
+DROP TRIGGER IF EXISTS log_modem_cambios            ON "Modem";
+DROP TRIGGER IF EXISTS log_lote_cambios             ON "Lote";
+DROP TRIGGER IF EXISTS log_registro_cambios         ON "Registro";
+DROP TRIGGER IF EXISTS actualizar_lote_desde_modem  ON "Modem";
+DROP TRIGGER IF EXISTS borrado_logico_modem_trigger ON "Modem";
+DROP TRIGGER IF EXISTS validar_transicion_modem     ON "Modem";
+DROP TRIGGER IF EXISTS registrar_transicion_modem   ON "Modem";
+DROP TRIGGER IF EXISTS validar_cambio_fase          ON "Modem";
+DROP TRIGGER IF EXISTS registrar_cambio_fase        ON "Modem";
+DROP TRIGGER IF EXISTS validar_fase_inicial_modem   ON "Modem";
+
+-- 1. Función para validar fase en creación de nuevo modem
+CREATE OR REPLACE FUNCTION validar_fase_inicial()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_rol_usuario TEXT;
+    v_fase_permitida TEXT;
+BEGIN
+    SELECT rol::TEXT INTO v_rol_usuario FROM "User" WHERE id = NEW."responsableId";
+    CASE v_rol_usuario
+        WHEN 'UReg' THEN v_fase_permitida := 'REGISTRO';
+        WHEN 'UV' THEN v_fase_permitida := NULL; -- Verificador puede cualquier fase
+        ELSE v_fase_permitida := 'REGISTRO';
+    END CASE;
+    IF v_rol_usuario = 'UV' THEN
+        RETURN NEW;
+    END IF;
+    IF v_fase_permitida IS NOT NULL AND NEW."faseActual" <> v_fase_permitida THEN
+        INSERT INTO "Log"(accion,entidad,detalle,"userId","createdAt")
+        VALUES (
+            'VIOLACION_FASE_INICIAL',
+            'Modem',
+            'Intento de crear modem con SN: ' || NEW.sn || ' en fase ' || NEW."faseActual" || ' por rol ' || v_rol_usuario,
+            NEW."responsableId",
+            NOW()
+        );
+        RAISE EXCEPTION 'El rol % solo puede crear modems en fase %, no en %', v_rol_usuario, v_fase_permitida, NEW."faseActual";
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS validar_fase_inicial_modem ON "Modem";
+CREATE TRIGGER validar_fase_inicial_modem
+BEFORE INSERT ON "Modem"
+FOR EACH ROW
+EXECUTE FUNCTION validar_fase_inicial();
+
+-- 2. Mejora de validación de transiciones de fase
+CREATE OR REPLACE FUNCTION validar_transicion_fase()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_rol_usuario TEXT;
+    v_orden_ant INTEGER;
+    v_orden_nuevo INTEGER;
+    v_mensaje TEXT;
+BEGIN
+    SELECT rol::TEXT INTO v_rol_usuario FROM "User" WHERE id = NEW."responsableId";
+    IF v_rol_usuario = 'UV' THEN
+        RETURN NEW;
+    END IF;
+    WITH fase_order AS (
+      SELECT 'REGISTRO'      AS fase, 1 UNION
+      SELECT 'TEST_INICIAL'  AS fase, 2 UNION
+      SELECT 'ENSAMBLE'      AS fase, 3 UNION
+      SELECT 'RETEST'        AS fase, 4 UNION
+      SELECT 'EMPAQUE'       AS fase, 5 UNION
+      SELECT 'SCRAP'         AS fase, 6 UNION
+      SELECT 'REPARACION'    AS fase, 7
+    )
+    SELECT fo.orden INTO v_orden_ant FROM fase_order fo WHERE fo.fase = OLD."faseActual";
+    SELECT fo.orden INTO v_orden_nuevo FROM fase_order fo WHERE fo.fase = NEW."faseActual";
+    INSERT INTO "Log"(accion,entidad,detalle,"userId","createdAt")
+    VALUES (
+      'DEBUG_FASE',
+      'Modem',
+      'Validando transición fase: ' || OLD."faseActual" || '(' || COALESCE(v_orden_ant::TEXT, 'NULL') || ') -> '
+        || NEW."faseActual" || '(' || COALESCE(v_orden_nuevo::TEXT, 'NULL') || ')',
+      NEW."responsableId",
+      NOW()
+    );
+    IF v_orden_ant IS NULL THEN
+        RAISE EXCEPTION 'Fase de origen "%" no reconocida', OLD."faseActual";
+    END IF;
+    IF v_orden_nuevo IS NULL THEN
+        RAISE EXCEPTION 'Fase de destino "%" no reconocida', NEW."faseActual";
+    END IF;
+    IF v_orden_nuevo < v_orden_ant AND NEW."faseActual" != 'REPARACION' THEN
+        v_mensaje := 'No se puede retroceder de fase ' || OLD."faseActual" || ' a ' || NEW."faseActual";
+        INSERT INTO "Log"(accion,entidad,detalle,"userId","createdAt")
+        VALUES ('VIOLACION_REGLA','Modem',v_mensaje,COALESCE(NEW."responsableId",1),NOW());
+        RAISE EXCEPTION '%', v_mensaje;
+    END IF;
+    IF v_orden_nuevo > v_orden_ant + 1 THEN
+        v_mensaje := 'No se puede saltar de fase ' || OLD."faseActual" || ' a ' || NEW."faseActual"
+                     || '. Debe seguir REGISTRO->TEST_INICIAL->ENSAMBLE->RETEST->EMPAQUE';
+        INSERT INTO "Log"(accion,entidad,detalle,"userId","createdAt")
+        VALUES ('VIOLACION_REGLA','Modem',v_mensaje,COALESCE(NEW."responsableId",1),NOW());
+        RAISE EXCEPTION '%', v_mensaje;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS validar_cambio_fase ON "Modem";
+CREATE TRIGGER validar_cambio_fase
+BEFORE UPDATE OF "faseActual" ON "Modem"
+FOR EACH ROW
+WHEN (OLD."faseActual" IS DISTINCT FROM NEW."faseActual")
+EXECUTE FUNCTION validar_transicion_fase();
+
 -- 1. Función para registrar actividades importantes en Log
 CREATE OR REPLACE FUNCTION registrar_actividad_log()
 RETURNS TRIGGER AS $$
@@ -263,49 +375,6 @@ AFTER UPDATE OF "estadoActualId" ON "Modem"
 FOR EACH ROW
 EXECUTE FUNCTION registrar_transicion_estado();
 
--- 5. Validación de transiciones de fase en Modem
-CREATE OR REPLACE FUNCTION validar_transicion_fase()
-RETURNS TRIGGER AS $$
-DECLARE
-    v_orden_ant INTEGER;
-    v_orden_nuevo INTEGER; -- CORREGIDO: Nombre de variable cambiado
-BEGIN
-    -- Definimos el orden de fases según schema.prisma
-    WITH fase_order AS (
-      SELECT 'REGISTRO'      AS fase, 1 UNION
-      SELECT 'TEST_INICIAL'  AS fase, 2 UNION
-      SELECT 'ENSAMBLE'      AS fase, 3 UNION
-      SELECT 'RETEST'        AS fase, 4 UNION
-      SELECT 'EMPAQUE'       AS fase, 5 UNION
-      SELECT 'SCRAP'         AS fase, 6 UNION
-      SELECT 'REPARACION'    AS fase, 7
-    )
-    SELECT fo.orden INTO v_orden_ant
-    FROM fase_order fo
-    WHERE fo.fase = OLD."faseActual";
-
-    SELECT fo.orden INTO v_orden_nuevo -- CORREGIDO: Nombre de variable cambiado
-    FROM fase_order fo
-    WHERE fo.fase = NEW."faseActual";
-
-    -- No retroceder salvo a Reparación y no saltar fases
-    IF v_orden_nuevo < v_orden_ant -- CORREGIDO: Nombre de variable cambiado
-       AND (SELECT "codigoInterno" FROM "Estado" WHERE id = NEW."estadoActualId") != 'REPARACION'
-    THEN
-        RAISE EXCEPTION 'No se puede retroceder de fase % a %', OLD."faseActual", NEW."faseActual";
-    ELSIF v_orden_nuevo > v_orden_ant + 1 THEN -- CORREGIDO: Nombre de variable cambiado
-        RAISE EXCEPTION 'No se puede saltar de fase % a %', OLD."faseActual", NEW."faseActual";
-    END IF;
-
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER validar_cambio_fase
-BEFORE UPDATE OF "faseActual" ON "Modem"
-FOR EACH ROW
-WHEN (OLD."faseActual" IS DISTINCT FROM NEW."faseActual")
-EXECUTE FUNCTION validar_transicion_fase();
 
 -- Modificado para usar Log en lugar de TransicionFase
 CREATE OR REPLACE FUNCTION registrar_transicion_fase()
