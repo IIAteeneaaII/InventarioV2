@@ -174,32 +174,45 @@ if (scrapInput && motivoScrapSelect) {
     }
   }
   
+  
   // Función para actualizar la tabla con animación mínima
   function actualizarTablaOptimizada(data) {
-    const tablaBody = document.getElementById('registros-body');
-    if (!tablaBody) return;
-    
-    const nuevaFila = document.createElement('tr');
-    nuevaFila.innerHTML = `
-      <td>${data.userName || userName}</td>
-      <td>${data.sn}</td>
-      <td>${new Date().toLocaleString('es-MX')}</td>
-      <td>SN_OK</td>
-      <td>N/A</td>
-    `;
-    
-    // Insertar al inicio sin animación
-    if (tablaBody.firstChild) {
-      tablaBody.insertBefore(nuevaFila, tablaBody.firstChild);
-    } else {
-      tablaBody.appendChild(nuevaFila);
-    }
-    
-    // Mantener la tabla con un máximo de filas para evitar lentitud
-    const maxRows = 20;
-    while (tablaBody.children.length > maxRows) {
-      tablaBody.removeChild(tablaBody.lastChild);
-    }
+      const tablaBody = document.getElementById('registros-body');
+      if (!tablaBody) return;
+      
+      const nuevaFila = document.createElement('tr');
+      
+      // Determinar si es scrap y aplicar clase CSS correspondiente
+      const esScrap = data.scrap && data.scrap.includes('SCRAP');
+      if (esScrap) {
+          nuevaFila.classList.add('fila-scrap');
+      }
+      
+      // Formatear el motivo scrap para mostrarlo (removiendo "SCRAP-" si existe)
+      const motivoMostrado = data.motivoScrap 
+          ? data.motivoScrap.replace('SCRAP-', '').replace(/_/g, ' ')
+          : 'N/A';
+      
+      nuevaFila.innerHTML = `
+        <td>${data.userName || userName}</td>
+        <td>${data.sn}</td>
+        <td>${new Date().toLocaleString('es-MX')}</td>
+        <td>${esScrap ? 'SCRAP' : 'SN_OK'}</td>
+        <td>${motivoMostrado}</td>
+      `;
+      
+      // Insertar al inicio sin animación
+      if (tablaBody.firstChild) {
+          tablaBody.insertBefore(nuevaFila, tablaBody.firstChild);
+      } else {
+          tablaBody.appendChild(nuevaFila);
+      }
+      
+      // Mantener la tabla con un máximo de filas para evitar lentitud
+      const maxRows = 20;
+      while (tablaBody.children.length > maxRows) {
+          tablaBody.removeChild(tablaBody.lastChild);
+      }
   }
 
   // Función para guardar el registro optimizada para velocidad
@@ -268,8 +281,10 @@ if (scrapInput && motivoScrapSelect) {
 
         // Actualizar tabla sin animaciones
         actualizarTablaOptimizada({
-          sn, 
-          userName: data.userName || userName
+            sn,
+            scrap,
+            motivoScrap,
+            userName: data.userName || userName
         });
         
         // Mostrar brevemente estado exitoso
@@ -384,13 +399,76 @@ if (scrapInput && motivoScrapSelect) {
     }
   }
 
-  // Permitir usar Enter para enviar
+  // 1. Añadir variable para controlar el estado del Auto-Enter
+  let autoEnterEnabled = true; // Por defecto activado
+  
+  // 2. Obtener referencia al botón de toggle
+  const autoEnterToggle = document.getElementById('autoenter-toggle');
+  
+  // 3. Función para actualizar el estado y apariencia del botón
+  const updateAutoEnterButton = () => {
+    if (autoEnterToggle) {
+      if (autoEnterEnabled) {
+        autoEnterToggle.classList.add('autoenter-off');
+        autoEnterToggle.classList.remove('autoenter-on');
+        autoEnterToggle.innerHTML = '<i class="fas fa-keyboard"></i> SCRAP: OFF';
+        autoEnterToggle.title = 'SCRAP desactivado (clic para activar)';
+      } else {
+        autoEnterToggle.classList.add('autoenter-on');
+        autoEnterToggle.classList.remove('autoenter-off');
+        autoEnterToggle.innerHTML = '<i class="fas fa-keyboard"></i> SCRAP: ON';
+        autoEnterToggle.title = 'SCRAP activado (clic para desactivar)';
+      }
+    }
+  };
+  
+  // 4. Event listener para el botón de toggle
+  if (autoEnterToggle) {
+    autoEnterToggle.addEventListener('click', (e) => {
+      e.preventDefault();
+      autoEnterEnabled = !autoEnterEnabled;
+      updateAutoEnterButton();
+      
+      // Mostrar feedback visual del cambio
+      statusIndicator.innerHTML = autoEnterEnabled 
+        ? '<span class="warning">SCRAP DESACTIVADO</span>' 
+        : '<span class="success">SCRAP ACTIVADO</span>';
+      
+      setTimeout(() => {
+        statusIndicator.innerHTML = '<span class="ready">Listo para escanear</span>';
+      }, 1500);
+    });
+    
+    // Inicializar el botón
+    updateAutoEnterButton();
+  }
+
+  // ... (resto del código existente)
+
+  // 5. Modificar el event listener del Enter para considerar el estado del Auto-Enter
   snInput.addEventListener('keypress', (event) => {
     if (event.key === 'Enter') {
       event.preventDefault();
+      
+      // Si el Auto-Enter está desactivado, solo enfocar el motivo scrap si está vacío
+      if (!autoEnterEnabled) {
+        const motivo = motivoScrapSelect ? motivoScrapSelect.value.trim() : '';
+        
+        if (motivo === '' && scrapInput && scrapInput.value.trim() === '') {
+          // Si no hay motivo scrap seleccionado, enfocar el select
+          if (motivoScrapSelect) {
+            motivoScrapSelect.focus();
+            statusIndicator.innerHTML = '<span class="warning">Seleccione motivo scrap</span>';
+          }
+          return;
+        }
+      }
+      
+      // Si Auto-Enter está activado o ya hay motivo scrap, guardar
       guardarRegistro();
     }
   });
+
   
   // Enfoque inicial
   snInput.focus();
