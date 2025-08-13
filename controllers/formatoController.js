@@ -11,6 +11,25 @@ const prisma = new PrismaClient();
 const modemService = require('../services/modemService');
 const { v4: uuidv4 } = require('uuid');
 
+
+
+async function resolveSkuId(tx, skuCodeRaw) {
+  if (!skuCodeRaw) throw new Error('SKU requerido');
+  const plain = String(skuCodeRaw).trim();
+  const numeric = plain.includes('-') ? plain.split('-')[1].trim() : plain;
+
+  const row = await tx.catalogoSKU.findFirst({
+    where: {
+      OR: [
+        { nombre: plain },     // ej. "FIBERHOME"
+        { skuItem: numeric }   // ej. "69643"
+      ]
+    },
+    select: { id: true }
+  });
+  if (!row) throw new Error(`El SKU "${skuCodeRaw}" no existe en CatalogoSKU`);
+  return row.id; // este es el que va en skuId (FK)
+}
 /**
  * Mapea un rol de usuario a una fase del proceso y carpeta de formato.
  */
@@ -32,200 +51,146 @@ const getRolConfig = (rol) => {
  * Asocia el registro con el usuario logueado y el módem correspondiente.
  */
 exports.guardarRegistro = async (req, res) => {
-  // Comprobar si la sesión es válida al principio
   if (!req.user || !req.user.id) {
-    console.log('Sesión de usuario inválida en guardarRegistro');
     return res.status(401).json({ error: 'Sesión caducada. Por favor, inicie sesión nuevamente.' });
   }
 
   const userId = req.user.id;
   const userRol = req.user.rol;
-  // Extraer campos de la solicitud, incluyendo detalleScrap
   let { sn, scrap, motivoScrap, detalleScrap, sku, finalizarLote, loteId } = req.body;
 
-  // Si se solicita finalizar un lote, delegar a la función específica
-  if (finalizarLote && loteId) {
-    return this.finalizarLote(req, res);
-  }
+  if (finalizarLote && loteId) return this.finalizarLote(req, res);
 
-  // Convertir SN a mayúsculas
-  if (sn) sn = sn.toUpperCase().trim();
-  
-  if (!sn) {
-    return res.status(400).json({ error: 'El número de serie (S/N) es obligatorio.' });
-  }
-  // El SKU solo es obligatorio en la fase de registro (UReg)
+  if (!sn) return res.status(400).json({ error: 'El número de serie (S/N) es obligatorio.' });
+  sn = sn.toUpperCase().trim();
+
   if (userRol === 'UReg' && !sku) {
     return res.status(400).json({ error: 'El SKU es obligatorio para registrar un nuevo lote.' });
   }
 
-  // Extraer el SKU numérico de la cadena completa
-  let skuNumber = sku;
-  if (sku.includes('-')) {
-    skuNumber = sku.split('-')[1].trim();
-  }
-
   const rolConfig = getRolConfig(userRol);
-  if (!rolConfig.fase) {
-    return res.status(403).json({ error: 'Tu rol no tiene una fase de proceso asignada.' });
-  }
-  // Bloquear la fase de Empaque en este endpoint; usar registrarModemEmpaque en empaqueController
-  if (userRol === 'UE') {
-    return res.status(403).json({ error: 'Usa el endpoint de empaque para registrar en la fase de Empaque.' });
-  }
-  // En función del rol, procesar registro o avance de fase
+  if (!rolConfig.fase) return res.status(403).json({ error: 'Tu rol no tiene una fase de proceso asignada.' });
+  if (userRol === 'UE') return res.status(403).json({ error: 'Usa el endpoint de empaque para registrar en la fase de Empaque.' });
 
   try {
-    // Verificar si ya existe este S/N en la fase actual
+    // anti‑spam 6s
     const existeRegistro = await prisma.registro.findFirst({
-      where: { 
-        sn,
-        fase: rolConfig.fase,
-        userId
-      },
+      where: { sn, fase: rolConfig.fase, userId },
       orderBy: { createdAt: 'desc' },
       take: 1
     });
-    
-    if (existeRegistro && 
-        new Date().getTime() - new Date(existeRegistro.createdAt).getTime() < 60000) {
-      return res.status(400).json({ 
-        error: 'Este número de serie ya fue escaneado en los últimos 60 segundos.'
-      });
+    if (existeRegistro && Date.now() - new Date(existeRegistro.createdAt).getTime() < 6000) {
+      return res.status(400).json({ error: 'Este número de serie ya fue escaneado en los últimos 6 segundos.' });
     }
 
-    let modem;
-    let loteActivo;
-    // Flujo de registro y avance de fase según rol
-    if (userRol === 'UReg' || userRol === 'UA') {
-      // Registro inicial: crear modem y lote si es necesario
-      const skuId = parseInt(sku.includes('-') ? sku.split('-')[1] : sku, 10) || null;
-      // Buscar o crear lote de entrada
-      loteActivo = await prisma.lote.findFirst({
-        where: { skuId, tipoLote: TipoLote.ENTRADA, estado: EstadoLote.EN_PROCESO, esScrap: false }
-      });
-      if (!loteActivo) {
-        const fecha = new Date();
-        const numero = `${skuNumber}-${fecha.getFullYear()}${(fecha.getMonth()+1).toString().padStart(2,'0')}${fecha.getDate().toString().padStart(2,'0')}-${uuidv4().slice(0,6)}`;
-        loteActivo = await prisma.lote.create({ data: { numero, skuId, tipoLote: TipoLote.ENTRADA, estado: EstadoLote.EN_PROCESO, prioridad:5, responsableId:userId } });
-      }
-      // Crear modem
-      const estadoInit = await prisma.estado.findFirst({ where:{ nombre:'REGISTRO' } });
-      modem = await prisma.modem.create({ data:{ sn, skuId, estadoActualId:estadoInit.id, faseActual:rolConfig.fase, loteId:loteActivo.id, responsableId:userId } });
-    } else {
-      // Avance de fase para UTI (TEST_INICIAL), UEN (ENSAMBLE), UR (RETEST)
-      modem = await prisma.modem.findUnique({ where:{ sn } });
-      if (!modem) return res.status(404).json({ error:`Módem ${sn} no encontrado.` });
-      const fases = [FaseProceso.REGISTRO, FaseProceso.TEST_INICIAL, FaseProceso.ENSAMBLE, FaseProceso.RETEST];
-      const actualIdx = fases.indexOf(modem.faseActual);
-      const nuevaIdx = fases.indexOf(rolConfig.fase);
-      if (actualIdx < 0 || nuevaIdx !== actualIdx +1) {
-        return res.status(400).json({ error:`No se puede avanzar de ${modem.faseActual} a ${rolConfig.fase}.` });
-      }
-      // Actualizar fase
-      modem = await prisma.modem.update({ where:{ id:modem.id }, data:{ faseActual:rolConfig.fase, responsableId:userId } });
-      loteActivo = await prisma.lote.findUnique({ where:{ id:modem.loteId } });
-    }
-
-    // Determinar el estado del registro (OK o SCRAP) y mapear motivos y detalles a enums
+    // Mapear SCRAP (igual que tenías)
     let estadoRegistro = EstadoRegistro.SN_OK;
     let motivoScrapEnum = null;
     let detalleScrapEnum = null;
     if (scrap) {
-      // Mapear motivoScrap a enum MotivoScrap y estadoRegistro
       if (motivoScrap) {
         const m = motivoScrap.toString().toLowerCase();
-        if (m.includes('cosmetica')) {
-          motivoScrapEnum = MotivoScrap.COSMETICA;
-          estadoRegistro = EstadoRegistro.SCRAP_COSMETICO;
-        } else if (m.includes('fuera') || m.includes('rango') || m.includes('electro')) {
-          motivoScrapEnum = MotivoScrap.FUERA_DE_RANGO;
-          estadoRegistro = EstadoRegistro.SCRAP_ELECTRONICO;
-        } else if (m.includes('infestado') || m.includes('infestacion')) {
-          motivoScrapEnum = MotivoScrap.INFESTADO;
-          estadoRegistro = EstadoRegistro.SCRAP_INFESTACION;
-        } else {
-          motivoScrapEnum = MotivoScrap.OTRO;
-          estadoRegistro = EstadoRegistro.SCRAP_ELECTRONICO;
-        }
+        if (m.includes('cosmetica')) { motivoScrapEnum = MotivoScrap.COSMETICA; estadoRegistro = EstadoRegistro.SCRAP_COSMETICO; }
+        else if (m.includes('fuera') || m.includes('rango') || m.includes('electro')) { motivoScrapEnum = MotivoScrap.FUERA_DE_RANGO; estadoRegistro = EstadoRegistro.SCRAP_ELECTRONICO; }
+        else if (m.includes('infestado') || m.includes('infestacion')) { motivoScrapEnum = MotivoScrap.INFESTADO; estadoRegistro = EstadoRegistro.SCRAP_INFESTACION; }
+        else { motivoScrapEnum = MotivoScrap.OTRO; estadoRegistro = EstadoRegistro.SCRAP_ELECTRONICO; }
       }
-      // Mapear detalleScrap a enum DetalleScrap
       if (detalleScrap) {
         const d = detalleScrap.toString().toLowerCase();
-        if (d.includes('circuito ok') || d.includes('sirve circuito') || (d.includes('circuito') && d.includes('no base'))) {
-          detalleScrapEnum = DetalleScrap.CIRCUITO_OK_BASE_NOK;
-        } else if (d.includes('base ok') || d.includes('sirve base')) {
-          detalleScrapEnum = DetalleScrap.BASE_OK_CIRCUITO_NOK;
-        } else if (d.includes('infestacion')) {
-          detalleScrapEnum = DetalleScrap.INFESTACION;
-        } else {
-          detalleScrapEnum = DetalleScrap.OTRO;
-        }
+        if (d.includes('circuito ok') || d.includes('sirve circuito') || (d.includes('circuito') && d.includes('no base'))) detalleScrapEnum = DetalleScrap.CIRCUITO_OK_BASE_NOK;
+        else if (d.includes('base ok') || d.includes('sirve base')) detalleScrapEnum = DetalleScrap.BASE_OK_CIRCUITO_NOK;
+        else if (d.includes('infestacion')) detalleScrapEnum = DetalleScrap.INFESTACION;
+        else detalleScrapEnum = DetalleScrap.OTRO;
       }
     }
 
-    // Para roles distintos de UReg, validar que la fase actual es la anterior en el flujo
-    if (userRol !== 'UReg') {
-      const flujo = [
-        FaseProceso.REGISTRO,
-        FaseProceso.TEST_INICIAL,
-        FaseProceso.ENSAMBLE,
-        FaseProceso.RETEST,
-        FaseProceso.EMPAQUE
-      ];
-      const faseActual = modem.faseActual;
-      const nuevaFase = rolConfig.fase;
-      const idxActual = flujo.indexOf(faseActual);
-      const idxNueva = flujo.indexOf(nuevaFase);
-      if (idxActual < 0 || idxNueva < 0 || idxActual + 1 !== idxNueva) {
-        return res.status(400).json({
-          error: `No se permite registrar en fase ${nuevaFase} cuando el módem está en fase ${faseActual}.`  
+    const resultado = await prisma.$transaction(async (tx) => {
+      let loteActivo;
+      let modem;
+
+      if (userRol === 'UReg' || userRol === 'UA') {
+        // RESOLVER id real del catálogo (NO usar el código 69643)
+        const skuId = await resolveSkuId(tx, sku);
+
+        // evitar SN duplicado
+        const ya = await tx.modem.findUnique({ where: { sn } });
+        if (ya) throw new Error(`El módem ${sn} ya existe.`);
+
+        // buscar o crear lote
+        loteActivo = await tx.lote.findFirst({
+          where: { skuId, tipoLote: TipoLote.ENTRADA, estado: EstadoLote.EN_PROCESO, esScrap: false },
+          orderBy: { createdAt: 'desc' }
         });
-      }
-      // Avanzar fase del módem
-      modem = await prisma.modem.update({
-        where: { id: modem.id },
-        data: {
-          faseActual: nuevaFase,
-          responsableId: userId,
-          updatedAt: new Date()
+        if (!loteActivo) {
+          const fecha = new Date();
+          const skuNumber = String(sku).includes('-') ? String(sku).split('-')[1].trim() : String(sku).trim();
+          const numero = `${skuNumber}-${fecha.getFullYear()}${String(fecha.getMonth()+1).padStart(2,'0')}${String(fecha.getDate()).padStart(2,'0')}-${uuidv4().slice(0,6)}`;
+          loteActivo = await tx.lote.create({
+            data: { numero, skuId, tipoLote: TipoLote.ENTRADA, estado: EstadoLote.EN_PROCESO, prioridad: 5, responsableId: userId }
+          });
         }
-      });
-    }
-    // Crear el registro en la base de datos
-    const nuevoRegistro = await prisma.registro.create({
-      data: {
-        sn,
-        fase: rolConfig.fase,
-        estado: estadoRegistro,
-        motivoScrap: motivoScrapEnum,
-        detalleScrap: detalleScrapEnum,
-        userId: userId,
-        loteId: modem.loteId,
-        modemId: modem.id,
-      },
-      include: {
-        user: {
-          select: { id: true, nombre: true },
+
+        const estadoInit = await tx.estado.findFirst({ where: { nombre: 'REGISTRO' } });
+        if (!estadoInit) throw new Error('No existe el estado "REGISTRO" en la tabla Estado.');
+
+        modem = await tx.modem.create({
+          data: {
+            sn,
+            skuId: loteActivo.skuId, // FK correcta
+            estadoActualId: estadoInit.id,
+            faseActual: rolConfig.fase,
+            loteId: loteActivo.id,
+            responsableId: userId
+          }
+        });
+      } else {
+        // Avance de fase (UTI / UEN / UR)
+        modem = await tx.modem.findUnique({ where: { sn } });
+        if (!modem) throw new Error(`Módem ${sn} no encontrado.`);
+
+        const flujo = [FaseProceso.REGISTRO, FaseProceso.TEST_INICIAL, FaseProceso.ENSAMBLE, FaseProceso.RETEST, FaseProceso.EMPAQUE];
+        const iA = flujo.indexOf(modem.faseActual);
+        const iN = flujo.indexOf(rolConfig.fase);
+        if (iA < 0 || iN < 0 || iN !== iA + 1) {
+          throw new Error(`No se puede avanzar de ${modem.faseActual} a ${rolConfig.fase}.`);
+        }
+
+        modem = await tx.modem.update({
+          where: { id: modem.id },
+          data: { faseActual: rolConfig.fase, responsableId: userId, updatedAt: new Date() }
+        });
+
+        loteActivo = await tx.lote.findUnique({ where: { id: modem.loteId } });
+      }
+
+      const registro = await tx.registro.create({
+        data: {
+          sn,
+          fase: rolConfig.fase,
+          estado: estadoRegistro,
+          motivoScrap: motivoScrapEnum,
+          detalleScrap: detalleScrapEnum,
+          userId,
+          loteId: modem.loteId,
+          modemId: modem.id
         },
-      },
+        include: { user: { select: { id: true, nombre: true } } }
+      });
+
+      return { registro, loteId: loteActivo ? loteActivo.id : null };
     });
 
-    // Renovar explícitamente la sesión
-    if (req.session) {
-      req.session.touch();
-    }
+    if (req.session) req.session.touch();
 
-    // Incluir el loteId en la respuesta para que el frontend lo capture
-    res.status(201).json({
-      ...nuevoRegistro,
-      loteId: loteActivo ? loteActivo.id : null,
+    return res.status(201).json({
+      ...resultado.registro,
+      loteId: resultado.loteId,
       success: true,
-      userName: nuevoRegistro.user ? nuevoRegistro.user.nombre : null
+      userName: resultado.registro.user ? resultado.registro.user.nombre : null
     });
   } catch (error) {
     console.error('Error al guardar el registro:', error);
-    res.status(500).json({ error: 'Error interno al guardar el registro.' });
+    return res.status(500).json({ error: error.message || 'Error interno al guardar el registro.' });
   }
 };
 
