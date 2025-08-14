@@ -5,7 +5,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const scrapInput = document.getElementById('scrap-input');
   const motivoScrapSelect = document.getElementById('motivo-scrap');
   const skuTitle = document.querySelector('.form-section h1');
-  const statusIndicator = document.createElement('div');
+  
+  // Usar el indicador de estado que ya existe en el HTML
+  const statusIndicator = document.querySelector('.status-indicator');
 
 if (scrapInput && motivoScrapSelect) {
   motivoScrapSelect.addEventListener('change', () => {
@@ -41,13 +43,6 @@ if (scrapInput && motivoScrapSelect) {
   // Limpiar datos de otros SKUs
   limpiarOtrosSKUs(sessionKey);
   
-  // Agregar indicador de estado
-  statusIndicator.className = 'status-indicator';
-  statusIndicator.innerHTML = '<span class="ready">Listo para escanear</span>';
-  if (guardarBtn && guardarBtn.parentNode) {
-    guardarBtn.parentNode.appendChild(statusIndicator);
-  }
-
   // Agregar indicador de SKU actual
   const skuIndicator = document.createElement('div');
   skuIndicator.className = 'sku-indicator';
@@ -64,7 +59,7 @@ if (scrapInput && motivoScrapSelect) {
   }
 
   // Verificar que existan los elementos necesarios
-  if (!guardarBtn || !snInput) return;
+  if (!guardarBtn || !snInput || !statusIndicator) return;
   
   // Convertir a mayúsculas automáticamente
   snInput.addEventListener('input', function() {
