@@ -28,16 +28,21 @@
       </div>
     </form>
 
+    <!-- Info SKU debajo del buscador -->
+    <% if (sn && skuId && skuNombre) { %>
+      <div class="sku-info" style="margin: 8px 0; font-size: 14px; color: #374151;">
+        <strong>SKU:</strong> <%= skuNombre %> — <strong>ID:</strong> <%= skuId %>
+      </div>
+    <% } %>
+
     <% if (sn) { %>
       <% if (fasesRealizadas.length > 0) { %>
-<h2>
-  Historial del módem: <%= sn %>
-  <% if (skuId && skuNombre) { %>
-    — SKU: <%= skuNombre %> (ID: <%= skuId %>)
-  <% } %>
-</h2>
-
-        
+        <h2>
+          Historial del módem: <%= sn %>
+          <% if (skuId && skuNombre) { %>
+            — SKU: <%= skuNombre %> (ID: <%= skuId %>)
+          <% } %>
+        </h2>
 
         <div class="timeline-horizontal">
           <% const fases = ['REGISTRO', 'TEST_INICIAL', 'COSMETICA', 'ENSAMBLE', 'RETEST', 'EMPAQUE']; %>
