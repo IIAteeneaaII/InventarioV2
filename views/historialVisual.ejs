@@ -30,7 +30,14 @@
 
     <% if (sn) { %>
       <% if (fasesRealizadas.length > 0) { %>
-        <h2>Historial del módem: <%= sn %></h2>
+<h2>
+  Historial del módem: <%= sn %>
+  <% if (skuId && skuNombre) { %>
+    — SKU: <%= skuNombre %> (ID: <%= skuId %>)
+  <% } %>
+</h2>
+
+        
 
         <div class="timeline-horizontal">
           <% const fases = ['REGISTRO', 'TEST_INICIAL', 'COSMETICA', 'ENSAMBLE', 'RETEST', 'EMPAQUE']; %>
