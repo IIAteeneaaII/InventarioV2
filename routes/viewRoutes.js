@@ -66,32 +66,19 @@ router.get('/editarusuario/:id',
 router.get('/resumen_totales', verificarRol(['UAI']), async (req, res) => {
   try {
     const skuData = await prisma.$queryRaw`
-      WITH fases AS (
-        SELECT DISTINCT m."faseActual" 
-        FROM "Modem" m
-        WHERE m."deletedAt" IS NULL
-      ),
-      fase_entrada AS (
-        SELECT MIN(f."faseActual") AS fase_inicial
-        FROM fases f
-      ),
-      fase_salida AS (
-        SELECT MAX(f."faseActual") AS fase_final
-        FROM fases f
-      )
       SELECT 
         c.nombre,
         (SELECT COUNT(*) FROM "Modem" m 
          WHERE m."skuId" = c.id 
-         AND m."faseActual" = (SELECT fase_inicial FROM fase_entrada)
+         AND m."faseActual" = 'REGISTRO'
          AND m."deletedAt" IS NULL) as entrada,
         (SELECT COUNT(*) FROM "Modem" m 
          WHERE m."skuId" = c.id 
-         AND m."faseActual" = (SELECT fase_final FROM fase_salida)
+         AND m."faseActual" IN ('EMPAQUE', 'SCRAP')
          AND m."deletedAt" IS NULL) as salida,
         (SELECT COUNT(*) FROM "Modem" m 
          WHERE m."skuId" = c.id 
-         AND m."faseActual" NOT IN ((SELECT fase_inicial FROM fase_entrada), (SELECT fase_final FROM fase_salida))
+         AND m."faseActual" IN ('TEST_INICIAL', 'ENSAMBLE', 'RETEST', 'REPARACION')
          AND m."deletedAt" IS NULL) as "enProceso"
       FROM "CatalogoSKU" c
       ORDER BY c.nombre
@@ -225,32 +212,19 @@ router.get('/resumen', verificarRol(['UAI', 'UA', 'UV']), async (req, res) => {
   try {
     // Consulta SQL sin referencias a deletedAt
     const skuData = await prisma.$queryRaw`
-      WITH fases AS (
-        SELECT DISTINCT m."faseActual" 
-        FROM "Modem" m
-        WHERE m."deletedAt" IS NULL
-      ),
-      fase_entrada AS (
-        SELECT MIN(f."faseActual") AS fase_inicial
-        FROM fases f
-      ),
-      fase_salida AS (
-        SELECT MAX(f."faseActual") AS fase_final
-        FROM fases f
-      )
       SELECT 
         c.nombre,
         (SELECT COUNT(*) FROM "Modem" m 
          WHERE m."skuId" = c.id 
-         AND m."faseActual" = (SELECT fase_inicial FROM fase_entrada)
+         AND m."faseActual" = 'REGISTRO'
          AND m."deletedAt" IS NULL) as entrada,
         (SELECT COUNT(*) FROM "Modem" m 
          WHERE m."skuId" = c.id 
-         AND m."faseActual" = (SELECT fase_final FROM fase_salida)
+         AND m."faseActual" IN ('EMPAQUE', 'SCRAP')
          AND m."deletedAt" IS NULL) as salida,
         (SELECT COUNT(*) FROM "Modem" m 
          WHERE m."skuId" = c.id 
-         AND m."faseActual" NOT IN ((SELECT fase_inicial FROM fase_entrada), (SELECT fase_final FROM fase_salida))
+         AND m."faseActual" IN ('TEST_INICIAL', 'ENSAMBLE', 'RETEST', 'REPARACION')
          AND m."deletedAt" IS NULL) as "enProceso"
       FROM "CatalogoSKU" c
       ORDER BY c.nombre

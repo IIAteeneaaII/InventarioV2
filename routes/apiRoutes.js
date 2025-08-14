@@ -119,6 +119,95 @@ router.get('/stats/resumen', verificarRol(['UAI', 'UV']), async (req, res) => {
   }
 });
 
+router.get('/stats/etapas-proceso', verificarRol(['UAI', 'UA', 'UV']), async (req, res) => {
+  try {
+    const { skuNombre } = req.query;
+    console.log('Solicitud recibida para etapas-proceso, SKU:', skuNombre);
+    
+    // Preparar filtro de SKU
+    let whereClause = 'm."deletedAt" IS NULL';
+    let params = [];
+    
+    if (skuNombre && skuNombre !== 'todos') {
+      whereClause += ' AND c.nombre = $1';
+      params.push(skuNombre);
+    }
+    
+    // Consulta optimizada que obtiene directamente los conteos por categoría
+    const query = `
+      SELECT 
+        'registro' as categoria,
+        COUNT(*) as cantidad
+      FROM "Modem" m
+      JOIN "CatalogoSKU" c ON m."skuId" = c.id
+      WHERE ${whereClause} AND m."faseActual" = 'REGISTRO'
+      
+      UNION ALL
+      
+      SELECT 
+        'enProceso' as categoria,
+        COUNT(*) as cantidad
+      FROM "Modem" m
+      JOIN "CatalogoSKU" c ON m."skuId" = c.id
+      WHERE ${whereClause} AND m."faseActual" IN ('TEST_INICIAL', 'ENSAMBLE')
+      
+      UNION ALL
+      
+      SELECT 
+        'entrega' as categoria,
+        COUNT(*) as cantidad
+      FROM "Modem" m
+      JOIN "CatalogoSKU" c ON m."skuId" = c.id
+      WHERE ${whereClause} AND m."faseActual" = 'RETEST'
+      
+      UNION ALL
+      
+      SELECT 
+        'final' as categoria,
+        COUNT(*) as cantidad
+      FROM "Modem" m
+      JOIN "CatalogoSKU" c ON m."skuId" = c.id
+      WHERE ${whereClause} AND m."faseActual" = 'EMPAQUE'
+      
+      UNION ALL
+      
+      SELECT 
+        'scrap' as categoria,
+        COUNT(*) as cantidad
+      FROM "Modem" m
+      JOIN "CatalogoSKU" c ON m."skuId" = c.id
+      WHERE ${whereClause} AND m."faseActual" = 'SCRAP'
+    `;
+    
+    console.log('Ejecutando consulta para obtener etapas');
+    const resultados = await prisma.$queryRawUnsafe(query, ...params);
+    console.log('Datos de etapas obtenidos:', resultados);
+    
+    // Construir respuesta con formato consistente
+    const etapas = {
+      registro: 0,
+      enProceso: 0,
+      entrega: 0,
+      final: 0,
+      scrap: 0
+    };
+    
+    // Actualizar con los resultados reales
+    resultados.forEach(row => {
+      etapas[row.categoria] = parseInt(row.cantidad);
+    });
+    
+    res.json(etapas);
+  } catch (error) {
+    console.error('Error al obtener datos de etapas del proceso:', error);
+    res.status(500).json({ 
+      error: true,
+      message: 'Error al calcular datos de etapas del proceso',
+      details: error.message
+    });
+  }
+});
+
 // Endpoint para estadísticas por SKU específico
 router.get('/stats/sku/:skuId', verificarRol(['UAI', 'UA', 'UV']), async (req, res) => {
   try {
@@ -421,92 +510,6 @@ router.get('/stats/dashboard-filtered', async (req, res) => {
   } catch (error) {
     console.error('Error al obtener estadísticas filtradas:', error);
     res.status(500).json({ error: error.message });
-  }
-});
-
-// Endpoint para datos de etapas del proceso - Versión corregida
-router.get('/stats/etapas-proceso', async (req, res) => {
-  try {
-    const { skuNombre } = req.query;
-    console.log('Solicitud recibida para etapas-proceso, SKU:', skuNombre);
-    
-    // Primero, consultar todas las fases disponibles
-    let whereClause = 'm."deletedAt" IS NULL';
-    let params = [];
-    
-    if (skuNombre && skuNombre !== 'todos') {
-      whereClause += ' AND c.nombre = $1';
-      params.push(skuNombre);
-    }
-    
-    // Consulta mejorada para evitar problemas de conversión de enums
-    const query = `
-      WITH fases_ordenadas AS (
-        SELECT 
-          CAST(m."faseActual" AS TEXT) AS fase_nombre,
-          COUNT(*) AS cantidad,
-          CASE
-            WHEN CAST(m."faseActual" AS TEXT) = 'REGISTRO' THEN 1
-            WHEN CAST(m."faseActual" AS TEXT) = 'TEST_INICIAL' THEN 2
-            WHEN CAST(m."faseActual" AS TEXT) = 'COSMETICA' THEN 3
-            WHEN CAST(m."faseActual" AS TEXT) = 'LIBERACION_LIMPIEZA' THEN 4
-            WHEN CAST(m."faseActual" AS TEXT) = 'RETEST' THEN 5
-            WHEN CAST(m."faseActual" AS TEXT) = 'EMPAQUE' THEN 6
-            WHEN CAST(m."faseActual" AS TEXT) = 'SCRAP' THEN 7
-            ELSE 99
-          END AS orden
-        FROM "Modem" m
-        JOIN "CatalogoSKU" c ON m."skuId" = c.id
-        WHERE ${whereClause}
-        GROUP BY m."faseActual"
-      )
-      SELECT fase_nombre, cantidad FROM fases_ordenadas
-      ORDER BY orden ASC
-    `;
-    
-    console.log('Ejecutando consulta para obtener fases');
-    const fasesData = await prisma.$queryRawUnsafe(query, ...params);
-    console.log('Datos de fases obtenidos:', fasesData);
-    
-    // Inicializar categorías con ceros
-    const etapas = {
-      registro: 0,
-      enProceso: 0,
-      entrega: 0,
-      final: 0
-    };
-    
-    // Si no hay datos, devolver los valores inicializados
-    if (!fasesData || fasesData.length === 0) {
-      return res.json(etapas);
-    }
-    
-    // Mapear las fases a las categorías correspondientes
-    for (const fase of fasesData) {
-      const nombreFase = fase.fase_nombre;
-      const cantidad = parseInt(fase.cantidad);
-      
-      if (nombreFase === 'REGISTRO') {
-        etapas.registro += cantidad;
-      } else if (nombreFase === 'EMPAQUE' || nombreFase === 'SCRAP') {
-        etapas.final += cantidad;
-      } else if (nombreFase === 'RETEST') {
-        etapas.entrega += cantidad;
-      } else {
-        // Todas las demás fases son "en proceso"
-        etapas.enProceso += cantidad;
-      }
-    }
-    
-    console.log('Datos de etapas calculados:', etapas);
-    res.json(etapas);
-  } catch (error) {
-    console.error('Error al obtener datos de etapas del proceso:', error);
-    res.status(500).json({ 
-      error: true,
-      message: 'Error al calcular datos de etapas del proceso',
-      details: error.message
-    });
   }
 });
 

@@ -316,17 +316,17 @@ function renderStagesChart(data) {
   // Obtener el total de modems del contador principal
   const totalModems = parseInt(document.getElementById('total-modems-count')?.textContent) || 0;
   
-  // Datos para la gráfica - AÑADIMOS SCRAP
+  // Datos para la gráfica
   const etiquetas = ['Registro', 'En Proceso', 'Entrega', 'Final', 'Scrap'];
   const valores = [
     data.registro || 0,
     data.enProceso || 0,
     data.entrega || 0,
     data.final || 0,
-    data.scrap || 0  // Añadimos el valor de Scrap
+    data.scrap || 0
   ];
   
-  // Añadir color para Scrap (rojo oscuro)
+  // Colores para cada categoría
   const colores = ['#4e73df', '#f6c23e', '#1cc88a', '#36b9cc', '#dc3545'];
   
   // Crear dataset para línea de referencia
@@ -413,26 +413,24 @@ function renderPhaseChart(data) {
   // Obtener el total de modems del contador principal
   const totalModems = parseInt(document.getElementById('total-modems-count')?.textContent) || 0;
 
-  // Definir el orden específico de las fases - AÑADIMOS SCRAP
+  // Definir el orden específico de las fases
   const ordenFases = [
     'REGISTRO', 
     'TEST_INICIAL', 
-    'COSMETICA', 
-    'LIBERACION_LIMPIEZA', 
+    'ENSAMBLE',
     'RETEST', 
     'EMPAQUE',
-    'SCRAP'  // Añadimos SCRAP al final
+    'SCRAP'
   ];
   
-  // Mapeo de nombres legibles para las fases - AÑADIMOS SCRAP
+  // Mapeo de nombres legibles para las fases
   const nombresFases = {
     'REGISTRO': 'Registro',
     'TEST_INICIAL': 'Test Inicial',
-    'COSMETICA': 'Cosmética',
-    'LIBERACION_LIMPIEZA': 'Liberación Limpieza',
+    'ENSAMBLE': 'Ensamble',
     'RETEST': 'Retest',
     'EMPAQUE': 'Empaque',
-    'SCRAP': 'Scrap'  // Añadimos el nombre legible para SCRAP
+    'SCRAP': 'Scrap'
   };
   
   // Agrupar los datos por fase (acumulando los valores para cada fase)
@@ -452,13 +450,12 @@ function renderPhaseChart(data) {
   const faseLabels = ordenFases.map(fase => nombresFases[fase] || formatFaseName(fase));
   const valores = ordenFases.map(fase => datosPorFase[fase] || 0);
   
-  // Colores para cada fase - AÑADIMOS COLOR PARA SCRAP
+  // Colores para cada fase
   const colores = [
     '#4e73df', // Registro (azul)
     '#36b9cc', // Test Inicial (cyan)
-    '#1cc88a', // Cosmetica (verde)
-    '#f6c23e', // Liberacion Limpieza (amarillo)
-    '#e74a3b', // Retest (rojo)
+    '#1cc88a', // Ensamble (verde)
+    '#f6c23e', // Retest (amarillo)
     '#5a5c69', // Empaque (gris)
     '#dc3545'  // Scrap (rojo oscuro)
   ];
