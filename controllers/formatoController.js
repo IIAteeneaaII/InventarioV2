@@ -70,7 +70,8 @@ exports.guardarRegistro = async (req, res) => {
 
   const rolConfig = getRolConfig(userRol);
   if (!rolConfig.fase) return res.status(403).json({ error: 'Tu rol no tiene una fase de proceso asignada.' });
-  if (userRol === 'UE') return res.status(403).json({ error: 'Usa el endpoint de empaque para registrar en la fase de Empaque.' });
+  // Comentamos esta restricción para permitir que el rol UE use este endpoint también
+  // if (userRol === 'UE') return res.status(403).json({ error: 'Usa el endpoint de empaque para registrar en la fase de Empaque.' });
 
   try {
     // anti‑spam 6s
@@ -144,21 +145,42 @@ exports.guardarRegistro = async (req, res) => {
           }
         });
       } else {
-        // Avance de fase (UTI / UEN / UR)
+        // Avance de fase (UTI / UEN / UR / UE)
         modem = await tx.modem.findUnique({ where: { sn } });
         if (!modem) throw new Error(`Módem ${sn} no encontrado.`);
 
-        const flujo = [FaseProceso.REGISTRO, FaseProceso.TEST_INICIAL, FaseProceso.ENSAMBLE, FaseProceso.RETEST, FaseProceso.EMPAQUE];
-        const iA = flujo.indexOf(modem.faseActual);
-        const iN = flujo.indexOf(rolConfig.fase);
-        if (iA < 0 || iN < 0 || iN !== iA + 1) {
-          throw new Error(`No se puede avanzar de ${modem.faseActual} a ${rolConfig.fase}.`);
-        }
+        // Lógica especial para empaque (UE)
+        if (userRol === 'UE') {
+          // Para UE, el modem ya debe estar en fase RETEST para pasar a EMPAQUE
+          if (modem.faseActual !== 'RETEST') {
+            throw new Error(`Para empaque, el módem debe estar en fase RETEST, no en ${modem.faseActual}.`);
+          }
+          
+          // Actualizar a fase EMPAQUE
+          modem = await tx.modem.update({
+            where: { id: modem.id },
+            data: { faseActual: rolConfig.fase, responsableId: userId, updatedAt: new Date() }
+          });
+        } else {
+          // Lógica normal para otros roles (UTI / UEN / UR)
+          const flujo = [FaseProceso.REGISTRO, FaseProceso.TEST_INICIAL, FaseProceso.ENSAMBLE, FaseProceso.RETEST, FaseProceso.EMPAQUE];
+          const iA = flujo.indexOf(modem.faseActual);
+          const iN = flujo.indexOf(rolConfig.fase);
+          
+          // Caso especial: RETEST → ENSAMBLE está permitido
+          if (modem.faseActual === FaseProceso.RETEST && rolConfig.fase === FaseProceso.ENSAMBLE) {
+            // Permitir esta transición
+          } 
+          // Validación estándar para otros casos
+          else if (iA < 0 || iN < 0 || iN !== iA + 1) {
+            throw new Error(`No se puede avanzar de ${modem.faseActual} a ${rolConfig.fase}.`);
+          }
 
-        modem = await tx.modem.update({
-          where: { id: modem.id },
-          data: { faseActual: rolConfig.fase, responsableId: userId, updatedAt: new Date() }
-        });
+          modem = await tx.modem.update({
+            where: { id: modem.id },
+            data: { faseActual: rolConfig.fase, responsableId: userId, updatedAt: new Date() }
+          });
+        }
 
         loteActivo = await tx.lote.findUnique({ where: { id: modem.loteId } });
       }
