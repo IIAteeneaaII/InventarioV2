@@ -31,6 +31,9 @@
   <div class="admin-container" style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); max-width: 1200px; margin: 40px auto;">
     <div class="h2-wrapper">
       <h2 style="text-align: center; margin-bottom: 24px;">Inventario de Insumos de Cosmética</h2>
+      <div class="alert alert-info">
+        <i class="fas fa-info-circle"></i> Todos los SKUs disponibles se muestran automáticamente. Utilice los botones de "Entrada" para registrar stock inicial.
+      </div>
     </div>
     <div class="card">
       <div class="card-body">
@@ -47,29 +50,36 @@
               </tr>
             </thead>
             <tbody>
-              <% Object.values(inventario).forEach(item => { 
-                   const total = item.CAPUCHONES + item.BASES + item.TAPAS;
-              %>
+              <% if (Object.keys(inventario).length === 0) { %>
                 <tr>
-                  <td><%= item.nombre || item.skuNombre || item.skuItem %></td>
-                  <td id="cantidad-<%= item.skuId %>-CAPUCHONES"><%= item.CAPUCHONES %></td>
-                  <td id="cantidad-<%= item.skuId %>-BASES"><%= item.BASES %></td>
-                  <td id="cantidad-<%= item.skuId %>-TAPAS"><%= item.TAPAS %></td>
-                  <td id="total-<%= item.skuId %>"><%= total %></td>
-                  <td>
-                    <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#movimientoModal"
-                            data-sku-id="<%= item.skuId %>" data-tipo-movimiento="ENTRADA"
-                            data-sku-nombre="<%= item.nombre || item.skuNombre || item.skuItem %>">
-                      <i class="fas fa-plus"></i> Entrada
-                    </button>
-                    <button class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#movimientoModal"
-                            data-sku-id="<%= item.skuId %>" data-tipo-movimiento="SALIDA"
-                            data-sku-nombre="<%= item.nombre || item.skuNombre || item.skuItem %>">
-                      <i class="fas fa-minus"></i> Salida
-                    </button>
-                  </td>
+                  <td colspan="6" class="text-center">No hay datos de inventario disponibles</td>
                 </tr>
-              <% }) %>
+              <% } else { %>
+                <% Object.values(inventario).forEach(item => { 
+                     const total = item.CAPUCHONES + item.BASES + item.TAPAS;
+                %>
+                  <tr>
+                    <td><%= item.nombre || item.skuNombre || item.skuItem %></td>
+                    <td id="cantidad-<%= item.skuId %>-CAPUCHONES"><%= item.CAPUCHONES %></td>
+                    <td id="cantidad-<%= item.skuId %>-BASES"><%= item.BASES %></td>
+                    <td id="cantidad-<%= item.skuId %>-TAPAS"><%= item.TAPAS %></td>
+                    <td id="total-<%= item.skuId %>"><%= total %></td>
+                    <td>
+                      <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#movimientoModal"
+                              data-sku-id="<%= item.skuId %>" data-tipo-movimiento="ENTRADA"
+                              data-sku-nombre="<%= item.nombre || item.skuNombre || item.skuItem %>">
+                        <i class="fas fa-plus"></i> Entrada
+                      </button>
+                      <button class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#movimientoModal"
+                              data-sku-id="<%= item.skuId %>" data-tipo-movimiento="SALIDA"
+                              data-sku-nombre="<%= item.nombre || item.skuNombre || item.skuItem %>"
+                              <%= total === 0 ? 'disabled' : '' %>>
+                        <i class="fas fa-minus"></i> Salida
+                      </button>
+                    </td>
+                  </tr>
+                <% }) %>
+              <% } %>
             </tbody>
           </table>
         </div>
@@ -120,7 +130,6 @@
 </script>
 <script src="/js/cerrarsesion.js"></script>
 <script>
-// --- Lógica para el modal y guardado de movimientos ---
 let movimientoModal;
 document.addEventListener('DOMContentLoaded', function() {
   movimientoModal = new bootstrap.Modal(document.getElementById('movimientoModal'));
@@ -139,12 +148,12 @@ document.addEventListener('DOMContentLoaded', function() {
       const modalHeader = document.getElementById('modalHeader');
       if (tipoMovimiento === 'ENTRADA') {
         modalTitle.textContent = 'Registrar Entrada de Insumos';
-        modalHeader.classList.remove('bg-danger');
-        modalHeader.classList.add('bg-success');
+        modalHeader.classList.remove('bg-danger', 'text-white');
+        modalHeader.classList.add('bg-success', 'text-white');
       } else {
         modalTitle.textContent = 'Registrar Salida de Insumos';
-        modalHeader.classList.remove('bg-success');
-        modalHeader.classList.add('bg-danger');
+        modalHeader.classList.remove('bg-success', 'text-white');
+        modalHeader.classList.add('bg-danger', 'text-white');
       }
     });
   });
@@ -186,7 +195,19 @@ document.addEventListener('DOMContentLoaded', function() {
         const capuchones = parseInt(document.getElementById(`cantidad-${skuId}-CAPUCHONES`).textContent);
         const bases = parseInt(document.getElementById(`cantidad-${skuId}-BASES`).textContent);
         const tapas = parseInt(document.getElementById(`cantidad-${skuId}-TAPAS`).textContent);
-        document.getElementById(`total-${skuId}`).textContent = capuchones + bases + tapas;
+        const total = capuchones + bases + tapas;
+        document.getElementById(`total-${skuId}`).textContent = total;
+        
+        // Actualizar estado del botón de salida
+        const salidaBtn = document.querySelector(`button[data-sku-id="${skuId}"][data-tipo-movimiento="SALIDA"]`);
+        if (salidaBtn) {
+          if (total === 0) {
+            salidaBtn.setAttribute('disabled', 'disabled');
+          } else {
+            salidaBtn.removeAttribute('disabled');
+          }
+        }
+        
         movimientoModal.hide();
       } else {
         Swal.fire({

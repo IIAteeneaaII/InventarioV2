@@ -622,5 +622,25 @@ router.get('/test', (req, res) => {
     } : null
   });
 });
-module.exports = router;
+
+// Endpoint para obtener todos los SKUs disponibles para el inventario
+router.get('/catalogos/skus', verificarAuth, async (req, res) => {
+  try {
+    const skus = await prisma.catalogoSKU.findMany({
+      select: {
+        id: true,
+        nombre: true,
+        skuItem: true
+      },
+      orderBy: {
+        nombre: 'asc'
+      }
+    });
+    res.json(skus);
+  } catch (error) {
+    console.error('Error al obtener SKUs:', error);
+    res.status(500).json({ error: 'Error al obtener los SKUs disponibles' });
+  }
+});
+
 module.exports = router;

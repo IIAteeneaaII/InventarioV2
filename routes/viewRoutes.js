@@ -149,6 +149,12 @@ router.get('/cosmetica',
   cosmeticaController.renderInventario
 );
 
+// Dashboard para ver inventario de cosmética como administrador (solo lectura)
+router.get('/admin/cosmetica', 
+  verificarRol(['UAI', 'UA']),
+  cosmeticaController.renderInventarioSoloLectura
+);
+
 // Dashboard para rol Empaque
 router.get('/empaque', 
   verificarRol(['UE']),
