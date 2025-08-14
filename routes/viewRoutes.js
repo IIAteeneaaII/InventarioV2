@@ -417,13 +417,13 @@ router.get('/historial',
         user: req.user,
         sn: null,
         skuId: null,
+        skuItem: null,
         skuNombre: null,
         fasesRealizadas: []
       });
     }
 
     try {
-      // 1️⃣ Consulta las fases
       const registros = await prisma.registro.findMany({
         where: { sn },
         orderBy: { createdAt: 'asc' },
@@ -431,18 +431,18 @@ router.get('/historial',
       });
       const fasesRealizadas = registros.map(r => r.fase);
 
-      // 2️⃣ Consulta el modem y su SKU
+      // 🔧 Selecciona también skuItem
       const modem = await prisma.modem.findUnique({
         where: { sn },
-        include: { sku: { select: { id: true, nombre: true } } }
+        include: { sku: { select: { id: true, nombre: true, skuItem: true } } }
       });
 
-      // 3️⃣ Render con la info extra
       res.render('historialVisual', {
         user: req.user,
         sn,
-        skuId: modem?.sku?.id || null,
-        skuNombre: modem?.sku?.nombre || null,
+        skuId: modem?.sku?.id ?? null,
+        skuNombre: modem?.sku?.nombre ?? null,
+        skuItem: modem?.sku?.skuItem ?? null, // ahora sí llega
         fasesRealizadas
       });
     } catch (error) {
@@ -452,6 +452,7 @@ router.get('/historial',
         sn,
         skuId: null,
         skuNombre: null,
+        skuItem: null,
         fasesRealizadas: [],
         error: 'Error al cargar historial'
       });

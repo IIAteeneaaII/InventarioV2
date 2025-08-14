@@ -29,9 +29,11 @@
     </form>
 
     <!-- Info SKU debajo del buscador -->
-    <% if (sn && skuId && skuNombre) { %>
+    <% if (sn && skuNombre && (skuItem || skuId)) { %>
       <div class="sku-info" style="margin: 8px 0; font-size: 14px; color: #374151;">
-        <strong>SKU:</strong> <%= skuNombre %> — <strong>ID:</strong> <%= skuId %>
+        <strong>SKU:</strong> <%= skuNombre %>
+        <% if (skuItem) { %> — <strong>Item:</strong> <%= skuItem %> <% } %>
+        <% if (skuId) { %> — <strong>ID:</strong> <%= skuId %> <% } %>
       </div>
     <% } %>
 
@@ -39,8 +41,10 @@
       <% if (fasesRealizadas.length > 0) { %>
         <h2>
           Historial del módem: <%= sn %>
-          <% if (skuId && skuNombre) { %>
-            — SKU: <%= skuNombre %> (ID: <%= skuId %>)
+          <% if (skuNombre && (skuItem || skuId)) { %>
+            — SKU: <%= skuNombre %>
+            <% if (skuItem) { %> (Item: <%= skuItem %>) <% } %>
+            <% if (skuId) { %> <% } %>
           <% } %>
         </h2>
 
@@ -55,7 +59,7 @@
             'EMPAQUE': 'empaque'
           }; %>
 
-          <% 
+          <%
             const incluyeTestInicial = fasesRealizadas.includes('TEST_INICIAL');
             const incluyeEnsamble = fasesRealizadas.includes('ENSAMBLE');
           %>
@@ -95,10 +99,10 @@
     <% } %>
   </div>
 
-  <script>
-    document.getElementById('btn-regresar').addEventListener('click', function () {
-      window.history.back();
-    });
-  </script>
+<script>
+  document.getElementById('btn-regresar').addEventListener('click', function() {
+    window.location.href = '/adminventario';
+  });
+</script>
 </body>
 </html>
