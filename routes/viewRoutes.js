@@ -153,7 +153,7 @@ router.get('/cosmetica',
 router.get('/admin/cosmetica', 
   verificarRol(['UAI', 'UA']),
   cosmeticaController.renderInventarioSoloLectura
-);
+);   
 
 // Dashboard para rol Empaque
 router.get('/empaque', 
