@@ -64,14 +64,24 @@
             const incluyeEnsamble = fasesRealizadas.includes('ENSAMBLE');
           %>
 
-          <% fases.forEach((fase, index) => {
+          <% 
+            // Verificar si se ha llegado a la fase de empaque
+            const llegoAEmpaque = fasesRealizadas.includes('EMPAQUE');
+            
+            fases.forEach((fase, index) => {
             let completada = fasesRealizadas.includes(fase);
-            const esActual = fasesRealizadas[fasesRealizadas.length - 1] === fase;
+            let esActual = fasesRealizadas[fasesRealizadas.length - 1] === fase;
 
             // Reglas para COSMETICA
-            const mostrarMorado = (fase === 'COSMETICA' && incluyeTestInicial && !incluyeEnsamble);
+            const mostrarMorado = (fase === 'COSMETICA' && incluyeTestInicial && !incluyeEnsamble && !llegoAEmpaque);
             if (fase === 'COSMETICA' && incluyeEnsamble) {
               completada = true;
+            }
+            
+            // Si llegó a empaque, todas las fases anteriores se marcan como completadas
+            if (llegoAEmpaque && fase !== 'EMPAQUE') {
+              completada = true;
+              esActual = false;
             }
           %>
             <div class="timeline-item 
@@ -86,7 +96,7 @@
             </div>
 
             <% if (index < fases.length - 1) { %>
-              <div class="timeline-line"></div>
+              <div class="timeline-line <%= llegoAEmpaque ? 'empaque-completo' : '' %>"></div>
             <% } %>
           <% }) %>
         </div>

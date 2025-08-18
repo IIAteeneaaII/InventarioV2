@@ -675,6 +675,11 @@
   box-shadow: 0 0 8px #a64ac9;
 }
 
+/* Estilos específicos cuando se ha llegado a empaque */
+.timeline-line.empaque-completo {
+  background-color: #22c55e; /* verde */
+}
+
 .modal-btn-circle {
   width: 36px;
   height: 36px;
