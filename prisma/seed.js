@@ -67,11 +67,11 @@ async function main() {
   const flow = ["REGISTRO", "TEST_INICIAL", "ENSAMBLE", "RETEST", "EMPAQUE"];
   // Define los roles permitidos para cada transición
   const rolesPorTransicion = {
-    "REGISTRO->TEST_INICIAL": "UA,UV", // Almacén y superadmin
-    "TEST_INICIAL->ENSAMBLE": "UTI,UV", // Nuevo flujo
-    "ENSAMBLE->RETEST": "UEN,UV", // UEN es responsable de Ensamble
-    "RETEST->EMPAQUE": "UR,UV",
-    "EMPAQUE->SCRAP": "UE,UV",
+    "REGISTRO->TEST_INICIAL": "UA", // Almacén solamente
+    "TEST_INICIAL->ENSAMBLE": "UTI,UA", // Nuevo flujo
+    "ENSAMBLE->RETEST": "UEN,UA", // UEN es responsable de Ensamble
+    "RETEST->EMPAQUE": "UR,UA",
+    "EMPAQUE->SCRAP": "UE,UA",
     // Scrap y Reparacion pueden tener reglas propias
   };
 
@@ -92,8 +92,8 @@ async function main() {
 
     // Scrap (permitir mandar a scrap desde cualquier estado excepto Empaque)
     if (from !== "EMPAQUE") {
-      let rolesScrap = "UA,UTI,UR,UE,UReg,UV"; // Se quita UC, ULL, UEN
-      if (from === "REGISTRO") rolesScrap = "UA,UV";
+      let rolesScrap = "UA,UTI,UR,UE,UReg"; // Se quita UV, UC, ULL, UEN
+      if (from === "REGISTRO") rolesScrap = "UA";
       transiciones.push({
         id: idTrans++,
         estadoDesdeId: estadoMap[from],
@@ -109,7 +109,7 @@ async function main() {
         estadoDesdeId: estadoMap[from],
         estadoHaciaId: estadoMap["REPARACION"],
         nombreEvento: `Reparar ${from}`,
-        rolesPermitidos: "UR,UTI,UV"
+        rolesPermitidos: "UR,UTI,UA"
       });
     }
     // Reintegrar (excepto desde REGISTRO)
@@ -119,7 +119,7 @@ async function main() {
         estadoDesdeId: estadoMap[from],
         estadoHaciaId: estadoMap[from],
         nombreEvento: `Reintegrar ${from}`,
-        rolesPermitidos: "UR,UTI,UV"
+        rolesPermitidos: "UR,UTI,UA"
       });
     }
   }
@@ -131,7 +131,7 @@ async function main() {
       estadoDesdeId: estadoMap["REPARACION"],
       estadoHaciaId: estadoMap[from],
       nombreEvento: `Regresar a ${from} desde Reparacion`,
-      rolesPermitidos: "UR,UTI,UV"
+      rolesPermitidos: "UR,UTI,UA"
     });
   }
   // Reparacion -> Scrap
@@ -140,7 +140,7 @@ async function main() {
     estadoDesdeId: estadoMap["REPARACION"],
     estadoHaciaId: estadoMap["SCRAP"],
     nombreEvento: `Rechazar desde Reparacion`,
-    rolesPermitidos: "UV,UA"
+    rolesPermitidos: "UA"
   });
 
   // Limpia la tabla antes de insertar (opcional, recomendado)
@@ -191,7 +191,7 @@ async function main() {
           AND (
             te."rolesPermitidos" IS NULL
             OR te."rolesPermitidos" ~ ('(^|,)' || v_rol_usuario || '(,|$)')
-            OR v_rol_usuario = 'UV'
+            OR v_rol_usuario = 'UA'
           );
     END;
     $$ LANGUAGE plpgsql;

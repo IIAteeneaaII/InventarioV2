@@ -68,7 +68,7 @@ exports.login = async (req, res) => {
     setFlashMessage(res, '¡Inicio de sesión éxitoso.', 'success');
     
     // Redirección según rol
-    const rolesSeleccionLote = ['UA', 'UV', 'UReg', 'UTI', 'UR', 'UE', 'UEN'];
+    const rolesSeleccionLote = ['UReg', 'UTI', 'UR', 'UE', 'UEN'];
     let redirectTo;
     switch (user.rol) {
       case 'UAI':
@@ -76,6 +76,12 @@ exports.login = async (req, res) => {
         break;
       case 'UC':
         redirectTo = '/cosmetica';
+        break;
+      case 'UV':
+        redirectTo = '/historial'; // Vista limitada para el visualizador
+        break;
+      case 'UA':
+        redirectTo = '/almacen'; // Nueva vista de dashboard para Almacén
         break;
       case 'UReg':
         redirectTo = '/seleccionlote';

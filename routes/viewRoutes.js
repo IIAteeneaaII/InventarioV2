@@ -63,7 +63,7 @@ router.get('/editarusuario/:id',
 //);
 
 // Tabla de contabilidad por SKU
-router.get('/resumen_totales', verificarRol(['UAI']), async (req, res) => {
+router.get('/resumen_totales', verificarRol(['UAI', 'UA']), async (req, res) => {
   try {
     const skuData = await prisma.$queryRaw`
       SELECT 
@@ -98,7 +98,7 @@ router.get('/resumen_totales', verificarRol(['UAI']), async (req, res) => {
 
 // Dashboard para rol registro
 router.get('/registro', 
-  verificarRol(['UReg']),
+  verificarRol(['UReg', 'UA']),
   (req, res) => {
       res.render('registro_lote', { user: req.user });
   }
@@ -106,7 +106,7 @@ router.get('/registro',
 
 // Ruta principal para selección de lote
 router.get('/seleccionlote', 
-  verificarRol(['UA', 'UV', 'UTI', 'UR', 'UE', 'UEN', 'UReg']),
+  verificarRol(['UA', 'UTI', 'UR', 'UE', 'UEN', 'UReg']),
   (req, res) => {
     res.render('seleccion_modelo', { user: req.user });
   }
@@ -116,13 +116,13 @@ router.get('/seleccionlote',
 router.get('/almacen', 
   verificarRol(['UA']),
   (req, res) => {
-      res.render('dashboard_almacen', { user: req.user });
+      res.render('almacen_dashboard', { user: req.user });
   }
 );
 
 // Dashboard para rol visualizador
 router.get('/nuevos_usuarios', 
-  verificarRol(['UV']),
+  verificarRol(['UA', 'UAI']),
   (req, res) => {
       res.render('nuevos_usuarios', { user: req.user });
   }
@@ -145,7 +145,7 @@ router.get('/testini',
 
 // Dashboard para rol Cosmetica (NUEVA VISTA DE INVENTARIO)
 router.get('/cosmetica',
-  verificarRol(['UC', 'UV', 'UAI']),
+  verificarRol(['UC', 'UAI', 'UA']),
   cosmeticaController.renderInventario
 );
 
@@ -157,7 +157,7 @@ router.get('/admin/cosmetica',
 
 // Dashboard para rol Empaque
 router.get('/empaque', 
-  verificarRol(['UE']),
+  verificarRol(['UE', 'UA']),
   (req, res) => {
       res.render('seleccion_lote', { user: req.user });
   }
@@ -165,7 +165,7 @@ router.get('/empaque',
 
 // Dashboard para Liberacion y limpieza
 router.get('/lineaLote', 
-  verificarRol(['UEN']), // UEN ahora hace Ensamble
+  verificarRol(['UEN', 'UA']), // UEN ahora hace Ensamble, UA también puede
   (req, res) => {
       res.render('seleccion_lote', { user: req.user });
   }
@@ -181,7 +181,7 @@ router.get('/Registros',
 
 // Vista de estadísticas por SKU específico
 router.get('/sku/:skuId',
-  verificarRol(['UAI', 'UA', 'UV']),
+  verificarRol(['UAI', 'UA']),
   async (req, res) => {
     try {
       const skuId = parseInt(req.params.skuId);
@@ -214,7 +214,7 @@ router.get('/sku/:skuId',
 );
 
 // Vista de gráficas (resumen)
-router.get('/resumen', verificarRol(['UAI', 'UA', 'UV']), async (req, res) => {
+router.get('/resumen', verificarRol(['UAI', 'UA']), async (req, res) => {
   try {
     // Consulta SQL sin referencias a deletedAt
     const skuData = await prisma.$queryRaw`
@@ -276,7 +276,7 @@ router.get('/resumen', verificarRol(['UAI', 'UA', 'UV']), async (req, res) => {
 });
 
 router.get('/terminos', 
-  verificarRol(['UA', 'UV', 'UTI', 'UR', 'UC', 'UE', 'ULL','UReg', 'UAI']),
+  verificarRol(['UA', 'UTI', 'UR', 'UC', 'UE', 'ULL','UReg', 'UAI']),
   (req, res) => {
       res.render('terminos', { user: req.user });
   }
@@ -383,7 +383,7 @@ router.get('/:carpeta/:nombre/:sku', (req, res) => {
 router.get('/ns', 
   verificarRol(['UAI', 'UA', 'UV']),
   (req, res) => {
-      res.render('ns', { user: req.user });
+      res.render('consulta_ns_admin', { user: req.user });
   }
 );
 
@@ -395,13 +395,13 @@ router.get('/crearusuario',
   }
 );
 router.post('/crearusuario', 
-  verificarRol(['UAI', 'UA', 'UV']),
+  verificarRol(['UAI', 'UA']),
   adminController.register
 );
 
 // Crear nuevos usuarios
 router.get('/adminventario', 
-  verificarRol(['UAI', 'UA', 'UV']),
+  verificarRol(['UAI', 'UA']),
   (req, res) => {
       res.render('admin_dashboard', { user: req.user });
   }
@@ -409,7 +409,7 @@ router.get('/adminventario',
 
 // Listar usuarios (para admin y roles autorizados)
 router.get('/listarusuarios',
-  verificarRol(['UAI', 'UA', 'UV']),
+  verificarRol(['UAI', 'UA']),
   adminController.listarUsuarios
 );
 
@@ -463,6 +463,22 @@ router.get('/historial',
         error: 'Error al cargar historial'
       });
     }
+  }
+);
+
+// Ruta para scrap - acceso para UA y encargados de empaque
+router.get('/scrap', 
+  verificarRol(['UA', 'UE']),
+  (req, res) => {
+      res.render('seleccion_modelo', { user: req.user });
+  }
+);
+
+// Ruta para test inicial - acceso para UA y test inicial
+router.get('/testinicial', 
+  verificarRol(['UA', 'UTI']),
+  (req, res) => {
+      res.render('seleccion_modelo', { user: req.user });
   }
 );
 
