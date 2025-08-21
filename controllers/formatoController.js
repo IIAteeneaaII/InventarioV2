@@ -156,27 +156,28 @@ exports.guardarRegistro = async (req, res) => {
             throw new Error(`Para empaque, el módem debe estar en fase RETEST, no en ${modem.faseActual}.`);
           }
           
-          // Actualizar a fase EMPAQUE
-          modem = await tx.modem.update({
-            where: { id: modem.id },
-            data: {
-              faseActual: 'EMPAQUE',
-              responsableId: userId,
-              updatedAt: new Date()
-            }
-          });
+          // Actualizar a fase EMPAQUE usando SQL nativo para evitar problemas de case sensitivity
+          await tx.$executeRaw`
+            UPDATE "Modem" 
+            SET "faseActual" = 'EMPAQUE', 
+                "responsableId" = ${userId}, 
+                "updatedAt" = ${new Date()} 
+            WHERE id = ${modem.id}
+          `;
+          
+          // Actualizar el objeto modem para mantener consistencia
+          modem = {
+            ...modem,
+            faseActual: 'EMPAQUE',
+            responsableId: userId,
+            updatedAt: new Date()
+          };
 
-          // Para el registro relacionado
-          await tx.registro.create({
-            data: {
-              sn: modem.sn,
-              fase: 'EMPAQUE',
-              estado: 'SN_OK',  // Usar un valor válido del enum EstadoRegistro según el schema
-              userId: userId,
-              loteId: modem.loteId,
-              modemId: modem.id
-            }
-          });
+          // Para el registro relacionado también usar SQL nativo
+          await tx.$executeRaw`
+            INSERT INTO "Registro" ("sn", "fase", "estado", "userId", "loteId", "modemId", "createdAt")
+            VALUES (${modem.sn}, 'EMPAQUE', 'SN_OK', ${userId}, ${modem.loteId}, ${modem.id}, ${new Date()})
+          `;
         } else {
           // Lógica normal para otros roles (UTI / UEN / UR)
           const flujo = [FaseProceso.REGISTRO, FaseProceso.TEST_INICIAL, FaseProceso.ENSAMBLE, FaseProceso.RETEST, FaseProceso.EMPAQUE];
