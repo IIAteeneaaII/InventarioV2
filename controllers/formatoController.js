@@ -159,7 +159,23 @@ exports.guardarRegistro = async (req, res) => {
           // Actualizar a fase EMPAQUE
           modem = await tx.modem.update({
             where: { id: modem.id },
-            data: { faseActual: rolConfig.fase, responsableId: userId, updatedAt: new Date() }
+            data: {
+              faseActual: 'EMPAQUE',
+              responsableId: userId,
+              updatedAt: new Date()
+            }
+          });
+
+          // Para el registro relacionado
+          await tx.registro.create({
+            data: {
+              sn: modem.sn,
+              fase: 'EMPAQUE',
+              estado: 'SN_OK',  // Usar un valor válido del enum EstadoRegistro según el schema
+              userId: userId,
+              loteId: modem.loteId,
+              modemId: modem.id
+            }
           });
         } else {
           // Lógica normal para otros roles (UTI / UEN / UR)
@@ -178,7 +194,11 @@ exports.guardarRegistro = async (req, res) => {
 
           modem = await tx.modem.update({
             where: { id: modem.id },
-            data: { faseActual: rolConfig.fase, responsableId: userId, updatedAt: new Date() }
+            data: {
+              faseActual: rolConfig.fase,
+              responsableId: userId,
+              updatedAt: new Date()
+            }
           });
         }
 

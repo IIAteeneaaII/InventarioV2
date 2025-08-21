@@ -1,5 +1,5 @@
--- Migración para implementar triggers del sistema
--- Creado el 20 de agosto de 2025
+-- Migración para implementar triggers del sistema optimizada
+-- Creado el 21 de agosto de 2025
 
 -- Asegurar lenguaje PL/pgSQL
 CREATE EXTENSION IF NOT EXISTS plpgsql;
@@ -25,17 +25,29 @@ DECLARE
 BEGIN
     SELECT rol::TEXT INTO v_rol_usuario FROM "User" WHERE id = NEW."responsableId";
 
+    -- Si es rol UReg, validar que solo use REGISTRO
+    -- Si es UA o UV, puede usar cualquier fase
+    -- Para otros roles, validar según corresponda
     CASE v_rol_usuario
         WHEN 'UReg' THEN v_fase_permitida := 'REGISTRO';
-        WHEN 'UA'   THEN v_fase_permitida := NULL; -- UA puede usar cualquier fase
+        WHEN 'UA' THEN v_fase_permitida := NULL; -- UA puede usar cualquier fase
+        WHEN 'UTI' THEN v_fase_permitida := 'TEST_INICIAL';
+        WHEN 'UC' THEN v_fase_permitida := 'COSMETICA';
+        WHEN 'UEN' THEN v_fase_permitida := 'ENSAMBLE';
+        WHEN 'UR' THEN v_fase_permitida := 'RETEST';
+        WHEN 'UE' THEN v_fase_permitida := 'EMPAQUE';
+        WHEN 'UV' THEN v_fase_permitida := NULL; -- Mantener UV también con acceso completo
         ELSE v_fase_permitida := 'REGISTRO';
     END CASE;
     
-    IF v_rol_usuario = 'UA' THEN
+    -- Si es UA o UV, permitir cualquier fase
+    IF v_rol_usuario IN ('UA', 'UV') THEN
         RETURN NEW;
     END IF;
     
-    IF v_fase_permitida IS NOT NULL AND NEW."faseActual" <> v_fase_permitida THEN
+    -- Para otros roles, validar la fase permitida
+    -- Importante: Convertir "faseActual" a TEXT para comparar con string
+    IF v_fase_permitida IS NOT NULL AND NEW."faseActual"::TEXT <> v_fase_permitida THEN
         INSERT INTO "Log"(accion, entidad, detalle, "userId", "createdAt")
         VALUES('ERROR_VALIDACION', 'MODEM', 
                format('El usuario con rol %s intentó crear un modem en fase %s (permitida: %s)', 
@@ -65,7 +77,7 @@ DECLARE
     v_mensaje TEXT;
 BEGIN
     -- Si no es un cambio de fase, permitir
-    IF OLD."faseActual" = NEW."faseActual" THEN
+    IF OLD."faseActual"::TEXT = NEW."faseActual"::TEXT THEN
         RETURN NEW;
     END IF;
 
@@ -75,8 +87,8 @@ BEGIN
     -- Obtener rol del usuario responsable
     SELECT rol::TEXT INTO v_rol_usuario FROM "User" WHERE id = NEW."responsableId";
     
-    -- El rol UA puede hacer cualquier cambio
-    IF v_rol_usuario = 'UA' THEN
+    -- Los roles UA y UV pueden hacer cualquier cambio
+    IF v_rol_usuario IN ('UA', 'UV') THEN
         RETURN NEW;
     END IF;
     
@@ -136,19 +148,17 @@ FOR EACH ROW
 EXECUTE FUNCTION validar_cambio_fase();
 
 -- ===================== 3) REGISTRAR CAMBIOS DE FASE =================
+-- Versión optimizada que usa solo la tabla Log existente
 CREATE OR REPLACE FUNCTION registrar_cambio_fase()
 RETURNS TRIGGER AS $$
 BEGIN
-    -- Si hubo un cambio de fase, registrarlo
-    IF OLD."faseActual" <> NEW."faseActual" THEN
-        INSERT INTO "HistoricoFases"("modemId", "faseAnterior", "faseNueva", "responsableId", "createdAt")
-        VALUES(NEW.id, OLD."faseActual", NEW."faseActual", NEW."responsableId", now());
-        
-        -- Registrar en log
+    -- Si hubo un cambio de fase, registrarlo solo en Log
+    IF OLD."faseActual"::TEXT <> NEW."faseActual"::TEXT THEN
+        -- Registrar en log con detalles detallados
         INSERT INTO "Log"(accion, entidad, detalle, "userId", "createdAt")
         VALUES('CAMBIO_FASE', 'MODEM', 
-              format('Modem id:%s cambió de fase %s a %s', 
-                     NEW.id, OLD."faseActual", NEW."faseActual"),
+              format('Modem id:%s SN:%s cambió de fase %s a %s', 
+                     NEW.id, NEW.sn, OLD."faseActual", NEW."faseActual"),
               NEW."responsableId", now());
     END IF;
     
@@ -167,22 +177,20 @@ RETURNS TRIGGER AS $$
 DECLARE
     v_lote_id INTEGER;
 BEGIN
-    -- Si cambia la fase o estado, actualizar contadores del lote
-    IF (OLD."faseActual" <> NEW."faseActual") OR (OLD."estadoActualId" <> NEW."estadoActualId") THEN
-        SELECT "loteId" INTO v_lote_id FROM "Registro" WHERE "modemId" = NEW.id;
+    -- Si cambia la fase o estado, actualizar el lote
+    IF (OLD."faseActual"::TEXT <> NEW."faseActual"::TEXT) OR (OLD."estadoActualId" <> NEW."estadoActualId") THEN
+        SELECT "loteId" INTO v_lote_id FROM "Registro" WHERE "modemId" = NEW.id LIMIT 1;
         
         IF v_lote_id IS NOT NULL THEN
-            -- Actualizar contadores del lote
-            UPDATE "Lote" 
-            SET "cantidadActualizada" = now(),
-                "contadorRegistro" = (SELECT COUNT(*) FROM "Modem" m JOIN "Registro" r ON m.id = r."modemId" WHERE r."loteId" = v_lote_id AND m."faseActual" = 'REGISTRO'),
-                "contadorTestInicial" = (SELECT COUNT(*) FROM "Modem" m JOIN "Registro" r ON m.id = r."modemId" WHERE r."loteId" = v_lote_id AND m."faseActual" = 'TEST_INICIAL'),
-                "contadorCosmetica" = (SELECT COUNT(*) FROM "Modem" m JOIN "Registro" r ON m.id = r."modemId" WHERE r."loteId" = v_lote_id AND m."faseActual" = 'COSMETICA'),
-                "contadorEnsamble" = (SELECT COUNT(*) FROM "Modem" m JOIN "Registro" r ON m.id = r."modemId" WHERE r."loteId" = v_lote_id AND m."faseActual" = 'ENSAMBLE'),
-                "contadorRetest" = (SELECT COUNT(*) FROM "Modem" m JOIN "Registro" r ON m.id = r."modemId" WHERE r."loteId" = v_lote_id AND m."faseActual" = 'RETEST'),
-                "contadorEmpaque" = (SELECT COUNT(*) FROM "Modem" m JOIN "Registro" r ON m.id = r."modemId" WHERE r."loteId" = v_lote_id AND m."faseActual" = 'EMPAQUE'),
-                "contadorScrap" = (SELECT COUNT(*) FROM "Modem" m JOIN "Registro" r ON m.id = r."modemId" WHERE r."loteId" = v_lote_id AND m."faseActual" = 'SCRAP')
-            WHERE id = v_lote_id;
+            -- Actualizar marca de tiempo del lote
+            BEGIN
+                UPDATE "Lote" 
+                SET "updatedAt" = now()
+                WHERE id = v_lote_id;
+            EXCEPTION WHEN OTHERS THEN
+                -- Solo registrar el error y continuar
+                RAISE NOTICE 'Error al actualizar lote: %', SQLERRM;
+            END;
         END IF;
     END IF;
     
@@ -204,11 +212,15 @@ BEGIN
     -- Obtener ID del estado ELIMINADO
     SELECT id INTO v_estado_eliminado_id FROM "Estado" WHERE codigoInterno = 'ELIMINADO' LIMIT 1;
     
-    -- En lugar de eliminar físicamente, marcar como eliminado
+    -- Si no existe un estado ELIMINADO, permitir el borrado físico
+    IF v_estado_eliminado_id IS NULL THEN
+        RETURN OLD;
+    END IF;
+    
+    -- En lugar de usar deletedAt, solo actualizamos estado y timestamp
     UPDATE "Modem" 
-    SET "deletedAt" = now(),
-        "updatedAt" = now(),
-        "estadoActualId" = COALESCE(v_estado_eliminado_id, "estadoActualId")
+    SET "updatedAt" = now(),
+        "estadoActualId" = v_estado_eliminado_id
     WHERE id = OLD.id;
     
     -- Registrar en log
@@ -284,8 +296,8 @@ BEGIN
     responsable_id := COALESCE(NEW."responsableId", 1); -- Default a ID 1 si no hay responsable
     
     -- Crear texto detallando los cambios
-    IF OLD.nombre <> NEW.nombre THEN
-        cambios_texto := cambios_texto || format('Nombre: %s → %s; ', OLD.nombre, NEW.nombre);
+    IF OLD.numero <> NEW.numero THEN
+        cambios_texto := cambios_texto || format('Número: %s → %s; ', OLD.numero, NEW.numero);
     END IF;
     
     IF OLD.estado <> NEW.estado THEN
@@ -317,7 +329,7 @@ DECLARE
     responsable_id INTEGER;
 BEGIN
     -- Determinar el responsable
-    responsable_id := COALESCE(NEW."responsableId", 1); -- Default a ID 1 si no hay responsable
+    responsable_id := COALESCE(NEW."userId", 1); -- Default a ID 1 si no hay responsable
     
     -- Crear texto detallando los cambios
     IF OLD."loteId" <> NEW."loteId" THEN
@@ -348,3 +360,66 @@ CREATE TRIGGER log_registro_cambios
 AFTER UPDATE ON "Registro"
 FOR EACH ROW
 EXECUTE FUNCTION log_registro_cambios();
+
+-- ===================== 9) OPTIMIZACIÓN DE REGISTROS INTERMEDIOS =================
+-- Basado en documento OPTIMIZACION.md
+CREATE OR REPLACE FUNCTION limpiar_registros_intermedios()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_modem_id INTEGER;
+BEGIN
+    -- Solo se activa cuando un módem llega a fase EMPAQUE
+    IF NEW."faseActual"::TEXT = 'EMPAQUE' THEN
+        v_modem_id := NEW.id;
+        
+        -- Crear un nuevo registro con fase EMPAQUE y estado SN_OK
+        INSERT INTO "Registro"(
+            sn, fase, estado, userId, loteId, modemId, createdAt
+        )
+        SELECT 
+            m.sn, 'EMPAQUE', 'SN_OK', NEW."responsableId", m.loteId, m.id, now()
+        FROM "Modem" m
+        WHERE m.id = v_modem_id;
+        
+        -- Registrar la acción de empaque
+        INSERT INTO "Log"(accion, entidad, detalle, "userId", "createdAt")
+        VALUES('EMPAQUE', 'MODEM', 
+              format('Modem id:%s completó fase EMPAQUE', v_modem_id),
+              NEW."responsableId", now());
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER auto_limpiar_registros
+AFTER UPDATE OF "faseActual" ON "Modem"
+FOR EACH ROW
+EXECUTE FUNCTION limpiar_registros_intermedios();
+
+-- ===================== 10) OPTIMIZACIÓN DE LOGS NO IMPORTANTES =================
+-- Basado en documento OPTIMIZACION.md
+CREATE OR REPLACE FUNCTION filtrar_logs_no_importantes()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_acciones_importantes TEXT[] := ARRAY['ERROR', 'ERROR_VALIDACION', 'CAMBIO_FASE', 'BORRADO_LOGICO', 'SCRAP', 'OPTIMIZACION'];
+BEGIN
+    -- Si la acción está en la lista de acciones importantes, permitir
+    IF NEW.accion = ANY(v_acciones_importantes) THEN
+        RETURN NEW;
+    END IF;
+    
+    -- Si es otra acción importante específica, permitir
+    IF NEW.accion = 'ACTUALIZAR' AND NEW.detalle LIKE '%Estado:%' THEN
+        RETURN NEW;
+    END IF;
+    
+    -- En caso contrario, cancelar la inserción del log
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER filtrar_logs
+BEFORE INSERT ON "Log"
+FOR EACH ROW
+EXECUTE FUNCTION filtrar_logs_no_importantes();
