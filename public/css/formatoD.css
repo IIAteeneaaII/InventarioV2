@@ -1,4 +1,4 @@
-/* ====== Base de estilos ====== */
+/* ====== Base de estilos para REPARACION ====== */
 body {
     font-family: Arial, sans-serif;
     background-color: #365a66;
@@ -304,4 +304,66 @@ label[for="motivo-scrap"] {
 /* Opcional: si quieres ocultar el texto “Escanear:” de arriba */
 .form-section .form-group:first-of-type label {
     display: none;
+}
+
+/* Barra de búsqueda encima de la tabla de historial */
+.historial-search {
+  margin: 10px 0 12px;
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.search-bar .search-icon {
+  font-size: 1rem;
+  opacity: 0.8;
+}
+
+.search-input {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: .95rem;
+  outline: none;
+  transition: border-color .2s ease;
+  background: #fff;
+}
+
+.search-input:focus {
+  border-color: #4CAF50;
+}
+
+.clear-btn {
+  border: 1px solid #ddd;
+  background: #f8f9fa;
+  padding: 8px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: .9rem;
+}
+
+.clear-btn:hover {
+  background: #f1f3f5;
+}
+
+.search-count {
+  font-size: .9rem;
+  color: #555;
+  white-space: nowrap;
+}
+
+/* Mensaje "sin resultados" */
+.no-results-row td {
+  text-align: center;
+  font-style: italic;
+  color: #666;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .search-count { display: none; }
 }

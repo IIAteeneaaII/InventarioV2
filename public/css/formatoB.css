@@ -1,4 +1,4 @@
-/* ====== Base de estilos para EMPAQUE ====== */
+/* ====== Base de estilos para GENERAL y REGISTRO====== */
 body {
     font-family: Arial, sans-serif;
     background-color: #365a66;
@@ -41,6 +41,7 @@ body {
     height: calc(100% - 80px);
 }
 
+/* Columna del formulario: ahora es flex-col para poder “pegar” el botón Volver abajo */
 .form-section {
     flex: 1;
     padding: 25px;
@@ -49,6 +50,10 @@ body {
     min-width: 320px;
     overflow-y: auto;
     position: relative;
+
+    display: flex;              /* clave para empujar el botón al fondo */
+    flex-direction: column;     /* apilar en columna */
+    padding-bottom: 16px;       /* respiro con el borde inferior */
 }
 
 .table-section {
@@ -144,45 +149,29 @@ input[type="text"]:focus, select:focus {
     background-color: #179288e5;
 }
 
-.btn-volver {
-    background-color: #6c757d;
-    color: white;
-    padding: 6px 10px;
-    font-size: 0.8em;
-    border: none;
-    border-radius: 4px;
-    position: absolute;
-    bottom: 10px;
-    left: 5px; /* Ajustado más al borde */
-    cursor: pointer;
-    transition: background-color 0.3s;
-    z-index: 10;
-}
-
+/* ===== Botón Volver pegado al borde inferior izquierdo de la columna ===== */
+.btn-volver,
 #volver-btn {
-    display: inline-block;
-    margin-top: 120px;
     background-color: #6c757d;
     color: white;
-    border: none;
     padding: 10px 20px;
-    border-radius: 4px;
     font-size: 1em;
-    cursor: pointer;
-    text-align: left;
-    transition: background-color 0.3s;
-    position: relative;
-    left: -10px; /* ligeramente fuera del contenedor para acercarlo más al borde */
+    border: none;
+    border-radius: 4px;
+
+    /* Quitar absolute/relative previos y fijarlo al fondo de la columna */
+    position: static;
+    margin-top: auto;           /* empuja el botón al final de la columna */
+    align-self: flex-start;     /* alinear a la izquierda */
+    left: 0;
+    bottom: 0;
 }
 
-#volver-btn:hover {
-    background-color: #5a6268;
-}
-
-
+#volver-btn:hover,
 .btn-volver:hover {
     background-color: #5a6268;
 }
+
 .top-right {
     position: absolute;
     top: 10px;
@@ -200,7 +189,6 @@ input[type="text"]:focus, select:focus {
     border: 2px solid #66b3b7;
 }
 
-
 .logout-icon {
     width: 20px;
     height: 20px;
@@ -214,7 +202,6 @@ input[type="text"]:focus, select:focus {
     transform: scale(1.1);
     opacity: 0.8;
 }
-
 
 .username {
     font-size: 1.5rem;
@@ -259,6 +246,7 @@ input[type="text"]:focus, select:focus {
     border-radius: 4px;
 }
 
+/* ====== Estilos de etiquetas/“tags” de motivo ====== */
 .motivo-tag {
     display: inline-block;
     padding: 4px 10px;
@@ -268,17 +256,109 @@ input[type="text"]:focus, select:focus {
     margin-left: 8px;
 }
 
-.motivo-cosmetica {
-    background-color: #ffeaa7;
-    color: #d35400;
+.motivo-cosmetica { background-color: #ffeaa7; color: #d35400; }
+.motivo-electronica { background-color: #a29bfe; color: #2d3436; }
+.motivo-infestado  { background-color: #fab1a0; color: #c23616; }
+
+/* Filas marcadas como SCRAP en el historial */
+.fila-scrap { background: #fff3f3; }
+
+/* ========= Botón SCRAP ON/OFF ========= */
+#autoenter-toggle {
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1em;
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #fff;
+  background-color: #dc3545; /* OFF por defecto: rojo */
+  transition: filter 0.2s ease, transform 0.02s ease;
 }
 
-.motivo-electronica {
-    background-color: #a29bfe;
-    color: #2d3436;
+#autoenter-toggle:hover { filter: brightness(0.95); }
+#autoenter-toggle:active { transform: scale(0.995); }
+
+#autoenter-toggle.is-on  { background-color: #198754; } /* ON: verde */
+#autoenter-toggle.is-off { background-color: #dc3545; } /* OFF: rojo */
+
+/* ========= Bloque Motivo de Scrap (oculto por defecto; se muestra con JS) ========= */
+.motivo-scrap-group { display: none; }
+.motivo-scrap-group.visible { display: block; }
+
+/* (Opcional) aspecto del select */
+#motivo-scrap {
+  background-color: #fff;
 }
 
-.motivo-infestado {
-    background-color: #fab1a0;
-    color: #c23616;
+/* ====== Barra de búsqueda sobre la tabla ====== */
+.historial-search {
+  margin: 10px 0 12px;
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.search-bar .search-icon {
+  font-size: 1rem;
+  opacity: 0.8;
+}
+
+.search-input {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: .95rem;
+  outline: none;
+  transition: border-color .2s ease;
+  background: #fff;
+}
+
+.search-input:focus {
+  border-color: #4CAF50;
+}
+
+.clear-btn {
+  border: 1px solid #ddd;
+  background: #f8f9fa;
+  padding: 8px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: .9rem;
+}
+
+.clear-btn:hover {
+  background: #f1f3f5;
+}
+
+.search-count {
+  font-size: .9rem;
+  color: #555;
+  white-space: nowrap;
+}
+
+/* Mensaje "sin resultados" */
+.no-results-row td {
+  text-align: center;
+  font-style: italic;
+  color: #666;
+}
+
+/* Responsive pequeño */
+@media (max-width: 640px) {
+  .search-count { display: none; }
+}
+
+/* ====== Ajuste para evitar encimado con “Listo para escanear” ====== */
+.status-indicator {
+  margin-bottom: 12px;
 }
