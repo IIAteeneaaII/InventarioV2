@@ -1,6 +1,6 @@
 -- Migración para implementar triggers del sistema optimizada
--- Creado el 21 de agosto de 2025
--- Versión final unificada de todos los triggers funcionales
+-- Actualizado el 2025-08-22 17:12:54 por hugohdez8
+-- Versión unificada con fix para duplicación en EMPAQUE y limpieza de registros intermedios
 
 -- Asegurar lenguaje PL/pgSQL
 CREATE EXTENSION IF NOT EXISTS plpgsql;
@@ -28,10 +28,157 @@ DROP TRIGGER IF EXISTS validar_cambio_fase          ON "Modem";
 DROP TRIGGER IF EXISTS registrar_cambio_fase        ON "Modem";
 DROP TRIGGER IF EXISTS validar_fase_inicial_modem   ON "Modem";
 DROP TRIGGER IF EXISTS auto_limpiar_registros       ON "Modem";
+DROP TRIGGER IF EXISTS auto_limpiar_registros       ON "Registro"; -- Añadido para limpieza completa
 DROP TRIGGER IF EXISTS optimizar_registros_trigger  ON "Modem";
 DROP TRIGGER IF EXISTS filtrar_logs                 ON "Log";
+DROP TRIGGER IF EXISTS prevenir_duplicados_empaque_trigger ON "Registro";
 
--- ===================== 1) VALIDAR FASE INICIAL EN INSERT =================
+-- ===================== 1) TRIGGER PARA PREVENIR DUPLICADOS DE EMPAQUE =====================
+CREATE OR REPLACE FUNCTION prevenir_duplicados_empaque()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_existe_registro BOOLEAN;
+    v_tiempo_reciente TIMESTAMP;
+BEGIN
+    -- Solo verificar para fase EMPAQUE
+    IF NEW.fase = 'EMPAQUE' THEN
+        -- Verificar si existe un registro de EMPAQUE reciente (últimos 5 segundos)
+        v_tiempo_reciente := NOW() - INTERVAL '5 seconds';
+        
+        SELECT EXISTS (
+            SELECT 1 FROM "Registro" 
+            WHERE "modemId" = NEW."modemId" 
+            AND fase = 'EMPAQUE'
+            AND "createdAt" > v_tiempo_reciente
+        ) INTO v_existe_registro;
+        
+        IF v_existe_registro THEN
+            -- Registrar intento de duplicación evitado
+            INSERT INTO "Log"(accion, entidad, detalle, "userId", "createdAt")
+            VALUES('PREVENCION_DUPLICADO', 'REGISTRO', 
+                   format('Evitada duplicación de registro EMPAQUE para modem id:%s', NEW."modemId"),
+                   NEW."userId", now());
+            
+            -- No insertar el registro duplicado
+            RETURN NULL;
+        END IF;
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER prevenir_duplicados_empaque_trigger
+BEFORE INSERT ON "Registro"
+FOR EACH ROW
+EXECUTE FUNCTION prevenir_duplicados_empaque();
+
+-- ===================== 2) VALIDAR TRANSICIÓN DE FASE (VERSIÓN ACTUALIZADA) =================
+CREATE OR REPLACE FUNCTION validar_transicion_fase()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_rol_usuario  TEXT;
+    v_orden_ant    INTEGER;
+    v_orden_nuevo  INTEGER;
+    v_mensaje      TEXT;
+BEGIN
+    SELECT rol::TEXT INTO v_rol_usuario FROM "User" WHERE id = NEW."responsableId";
+    IF v_rol_usuario = 'UV' THEN
+        RETURN NEW;
+    END IF;
+
+    -- CTE con columnas nombradas y casteo al enum; se usa en UN SOLO SELECT
+    WITH fase_order(fase, orden) AS (
+      VALUES
+        ('REGISTRO'::"FaseProceso",     1),
+        ('TEST_INICIAL'::"FaseProceso", 2),
+        ('ENSAMBLE'::"FaseProceso",     3),
+        ('RETEST'::"FaseProceso",       4),
+        ('EMPAQUE'::"FaseProceso",      5),
+        ('SCRAP'::"FaseProceso",        6),
+        ('REPARACION'::"FaseProceso",   7)
+    )
+    SELECT
+      MAX(CASE WHEN fase_order.fase = OLD."faseActual" THEN fase_order.orden END),
+      MAX(CASE WHEN fase_order.fase = NEW."faseActual" THEN fase_order.orden END)
+    INTO v_orden_ant, v_orden_nuevo
+    FROM fase_order;
+
+    -- Debug logging
+    INSERT INTO "Log"(accion, entidad, detalle, "userId", "createdAt")
+    VALUES (
+      'DEBUG_FASE',
+      'Modem',
+      'Validando transición fase: '
+        || OLD."faseActual"::text || '(' || COALESCE(v_orden_ant::text, 'NULL') || ') -> '
+        || NEW."faseActual"::text || '(' || COALESCE(v_orden_nuevo::text, 'NULL') || ')',
+      NEW."responsableId",
+      NOW()
+    );
+
+    -- Validar que las fases existan
+    IF v_orden_ant IS NULL THEN
+        RAISE EXCEPTION 'Fase de origen "%" no reconocida', OLD."faseActual"::text;
+    END IF;
+    IF v_orden_nuevo IS NULL THEN
+        RAISE EXCEPTION 'Fase de destino "%" no reconocida', NEW."faseActual"::text;
+    END IF;
+
+    -- REGLA ESPECIAL: Permitir la transición RETEST→ENSAMBLE
+    IF OLD."faseActual" = 'RETEST'::"FaseProceso" AND NEW."faseActual" = 'ENSAMBLE'::"FaseProceso" THEN
+        -- Esta transición está explícitamente permitida
+        INSERT INTO "Log"(accion, entidad, detalle, "userId", "createdAt")
+        VALUES (
+          'TRANSICION_ESPECIAL',
+          'Modem',
+          'Permitida transición especial de RETEST a ENSAMBLE para el módem SN: ' || NEW.sn,
+          NEW."responsableId",
+          NOW()
+        );
+        RETURN NEW;
+    END IF;
+
+    -- REGLA ESPECIAL: SCRAP solo puede ir a ENSAMBLE
+    IF OLD."faseActual" = 'SCRAP'::"FaseProceso" AND NEW."faseActual" <> 'ENSAMBLE'::"FaseProceso" THEN
+        v_mensaje := 'Un modem en SCRAP solo puede transicionar a ENSAMBLE, no a ' || NEW."faseActual"::text;
+        INSERT INTO "Log"(accion, entidad, detalle, "userId", "createdAt")
+        VALUES ('VIOLACION_REGLA','Modem',v_mensaje,COALESCE(NEW."responsableId",1),NOW());
+        RAISE EXCEPTION '%', v_mensaje;
+    END IF;
+
+    -- Regla de no retroceso (excepto casos especiales y REPARACION)
+    IF v_orden_nuevo < v_orden_ant 
+       AND NEW."faseActual" <> 'REPARACION'::"FaseProceso"
+       AND NOT (OLD."faseActual" = 'SCRAP'::"FaseProceso" AND NEW."faseActual" = 'ENSAMBLE'::"FaseProceso") THEN
+        v_mensaje := 'No se puede retroceder de fase ' || OLD."faseActual"::text || ' a ' || NEW."faseActual"::text;
+        INSERT INTO "Log"(accion, entidad, detalle, "userId", "createdAt")
+        VALUES ('VIOLACION_REGLA','Modem',v_mensaje,COALESCE(NEW."responsableId",1),NOW());
+        RAISE EXCEPTION '%', v_mensaje;
+    END IF;
+
+    -- Regla de no saltar fases (excepto para ir a SCRAP o REPARACION)
+    IF v_orden_nuevo > v_orden_ant + 1 
+       AND NEW."faseActual" <> 'SCRAP'::"FaseProceso"
+       AND NEW."faseActual" <> 'REPARACION'::"FaseProceso" THEN
+        v_mensaje := 'No se puede saltar de fase '
+                      || OLD."faseActual"::text || ' a ' || NEW."faseActual"::text
+                      || '. Debe seguir REGISTRO->TEST_INICIAL->ENSAMBLE->RETEST->EMPAQUE';
+        INSERT INTO "Log"(accion, entidad, detalle, "userId", "createdAt")
+        VALUES ('VIOLACION_REGLA','Modem',v_mensaje,COALESCE(NEW."responsableId",1),NOW());
+        RAISE EXCEPTION '%', v_mensaje;
+    END IF;
+
+    -- Si llega aquí, la transición es válida
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER validar_cambio_fase
+BEFORE UPDATE OF "faseActual" ON "Modem"
+FOR EACH ROW
+EXECUTE FUNCTION validar_transicion_fase();
+
+-- ===================== 3) VALIDAR FASE INICIAL EN INSERT =================
 CREATE OR REPLACE FUNCTION validar_fase_inicial()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -47,7 +194,6 @@ BEGIN
         WHEN 'UReg' THEN v_fase_permitida := 'REGISTRO';
         WHEN 'UA' THEN v_fase_permitida := NULL; -- UA puede usar cualquier fase
         WHEN 'UTI' THEN v_fase_permitida := 'TEST_INICIAL';
-        WHEN 'UC' THEN v_fase_permitida := 'COSMETICA';
         WHEN 'UEN' THEN v_fase_permitida := 'ENSAMBLE';
         WHEN 'UR' THEN v_fase_permitida := 'RETEST';
         WHEN 'UE' THEN v_fase_permitida := 'EMPAQUE';
@@ -81,90 +227,7 @@ BEFORE INSERT ON "Modem"
 FOR EACH ROW
 EXECUTE FUNCTION validar_fase_inicial();
 
--- ===================== 2) VALIDAR CAMBIOS DE FASE =================
-CREATE OR REPLACE FUNCTION validar_cambio_fase()
-RETURNS TRIGGER AS $$
-DECLARE
-    v_rol_usuario TEXT;
-    v_fases_permitidas TEXT[];
-    v_fase_actual TEXT;
-    v_fase_nueva TEXT;
-    v_mensaje TEXT;
-BEGIN
-    -- Si no es un cambio de fase, permitir
-    IF OLD."faseActual"::TEXT = NEW."faseActual"::TEXT THEN
-        RETURN NEW;
-    END IF;
-
-    v_fase_actual := OLD."faseActual"::TEXT;
-    v_fase_nueva := NEW."faseActual"::TEXT;
-    
-    -- Obtener rol del usuario responsable
-    SELECT rol::TEXT INTO v_rol_usuario FROM "User" WHERE id = NEW."responsableId";
-    
-    -- Los roles UA y UV pueden hacer cualquier cambio
-    IF v_rol_usuario IN ('UA', 'UV') THEN
-        RETURN NEW;
-    END IF;
-    
-    -- Determinar fases permitidas según el rol
-    CASE v_rol_usuario
-        WHEN 'UReg' THEN 
-            v_fases_permitidas := ARRAY['REGISTRO'];
-        WHEN 'UTI' THEN 
-            v_fases_permitidas := ARRAY['TEST_INICIAL'];
-        WHEN 'UC' THEN 
-            v_fases_permitidas := ARRAY['COSMETICA'];
-        WHEN 'UEN' THEN 
-            v_fases_permitidas := ARRAY['ENSAMBLE'];
-        WHEN 'UR' THEN 
-            v_fases_permitidas := ARRAY['RETEST'];
-        WHEN 'UE' THEN 
-            v_fases_permitidas := ARRAY['EMPAQUE', 'SCRAP'];
-        ELSE
-            v_fases_permitidas := ARRAY['REGISTRO'];
-    END CASE;
-    
-    -- Validar si la nueva fase está permitida para el rol
-    IF NOT (v_fase_nueva = ANY(v_fases_permitidas)) THEN
-        v_mensaje := format('El usuario con rol %s no puede cambiar a fase %s. Fases permitidas: %s', 
-                           v_rol_usuario, v_fase_nueva, array_to_string(v_fases_permitidas, ', '));
-        
-        INSERT INTO "Log"(accion, entidad, detalle, "userId", "createdAt")
-        VALUES('ERROR_VALIDACION', 'MODEM', v_mensaje, NEW."responsableId", now());
-        
-        RAISE EXCEPTION '%', v_mensaje;
-    END IF;
-    
-    -- Validar transiciones específicas según la fase actual
-    IF v_fase_actual = 'REGISTRO' AND NOT (v_fase_nueva IN ('TEST_INICIAL', 'SCRAP')) THEN
-        RAISE EXCEPTION 'Desde REGISTRO sólo se puede pasar a TEST_INICIAL o SCRAP';
-    ELSIF v_fase_actual = 'TEST_INICIAL' AND NOT (v_fase_nueva IN ('COSMETICA', 'ENSAMBLE', 'SCRAP')) THEN
-        RAISE EXCEPTION 'Desde TEST_INICIAL sólo se puede pasar a COSMETICA, ENSAMBLE o SCRAP';
-    ELSIF v_fase_actual = 'COSMETICA' AND NOT (v_fase_nueva IN ('ENSAMBLE', 'SCRAP')) THEN
-        RAISE EXCEPTION 'Desde COSMETICA sólo se puede pasar a ENSAMBLE o SCRAP';
-    ELSIF v_fase_actual = 'ENSAMBLE' AND NOT (v_fase_nueva IN ('RETEST', 'SCRAP')) THEN
-        RAISE EXCEPTION 'Desde ENSAMBLE sólo se puede pasar a RETEST o SCRAP';
-    -- Permitir RETEST -> ENSAMBLE (caso especial) o EMPAQUE
-    ELSIF v_fase_actual = 'RETEST' AND NOT (v_fase_nueva IN ('EMPAQUE', 'ENSAMBLE', 'SCRAP')) THEN
-        RAISE EXCEPTION 'Desde RETEST sólo se puede pasar a EMPAQUE, ENSAMBLE o SCRAP';
-    ELSIF v_fase_actual = 'EMPAQUE' AND v_fase_nueva <> 'SCRAP' THEN
-        RAISE EXCEPTION 'Desde EMPAQUE sólo se puede pasar a SCRAP';
-    ELSIF v_fase_actual = 'SCRAP' THEN
-        RAISE EXCEPTION 'No se puede cambiar desde la fase SCRAP';
-    END IF;
-    
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER validar_cambio_fase
-BEFORE UPDATE OF "faseActual" ON "Modem"
-FOR EACH ROW
-EXECUTE FUNCTION validar_cambio_fase();
-
--- ===================== 3) REGISTRAR CAMBIOS DE FASE =================
--- Versión optimizada que usa solo la tabla Log existente
+-- ===================== 4) REGISTRAR CAMBIOS DE FASE =================
 CREATE OR REPLACE FUNCTION registrar_cambio_fase()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -187,7 +250,7 @@ AFTER UPDATE OF "faseActual" ON "Modem"
 FOR EACH ROW
 EXECUTE FUNCTION registrar_cambio_fase();
 
--- ===================== 4) ACTUALIZAR LOTE DESDE MODEM =================
+-- ===================== 5) ACTUALIZAR LOTE DESDE MODEM =================
 CREATE OR REPLACE FUNCTION actualizar_lote_desde_modem()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -219,7 +282,7 @@ AFTER UPDATE OF "faseActual", "estadoActualId" ON "Modem"
 FOR EACH ROW
 EXECUTE FUNCTION actualizar_lote_desde_modem();
 
--- ===================== 5) BORRADO LÓGICO DE MODEM =================
+-- ===================== 6) BORRADO LÓGICO DE MODEM =================
 CREATE OR REPLACE FUNCTION borrado_logico_modem()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -256,7 +319,7 @@ BEFORE DELETE ON "Modem"
 FOR EACH ROW
 EXECUTE FUNCTION borrado_logico_modem();
 
--- ===================== 6) LOGS DE CAMBIOS EN MODEM =================
+-- ===================== 7) LOGS DE CAMBIOS EN MODEM =================
 CREATE OR REPLACE FUNCTION log_modem_cambios()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -302,7 +365,7 @@ AFTER UPDATE ON "Modem"
 FOR EACH ROW
 EXECUTE FUNCTION log_modem_cambios();
 
--- ===================== 7) LOGS DE CAMBIOS EN LOTE =================
+-- ===================== 8) LOGS DE CAMBIOS EN LOTE =================
 CREATE OR REPLACE FUNCTION log_lote_cambios()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -338,7 +401,7 @@ AFTER UPDATE ON "Lote"
 FOR EACH ROW
 EXECUTE FUNCTION log_lote_cambios();
 
--- ===================== 8) LOGS DE CAMBIOS EN REGISTRO =================
+-- ===================== 9) LOGS DE CAMBIOS EN REGISTRO =================
 CREATE OR REPLACE FUNCTION log_registro_cambios()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -378,30 +441,47 @@ AFTER UPDATE ON "Registro"
 FOR EACH ROW
 EXECUTE FUNCTION log_registro_cambios();
 
--- ===================== 9) OPTIMIZACIÓN DE REGISTROS INTERMEDIOS =================
--- Actualizado para funcionar correctamente con la fase EMPAQUE
+-- ===================== 10) OPTIMIZACIÓN DE REGISTROS INTERMEDIOS =================
+-- VERSIÓN CORREGIDA: Trigger para tabla Registro (no Modem)
 CREATE OR REPLACE FUNCTION limpiar_registros_intermedios()
 RETURNS TRIGGER AS $$
 DECLARE
-    v_modem_id INTEGER;
+    v_count INTEGER;
 BEGIN
-    -- Solo se activa cuando un módem llega a fase EMPAQUE
-    IF NEW."faseActual"::TEXT = 'EMPAQUE' THEN
-        v_modem_id := NEW.id;
+    -- Solo se activa cuando llega un registro de fase EMPAQUE
+    IF NEW.fase = 'EMPAQUE' THEN
+        -- Contar registros que serán eliminados (para logs)
+        SELECT COUNT(*) INTO v_count
+        FROM "Registro" 
+        WHERE "modemId" = NEW."modemId"
+        AND fase IN ('TEST_INICIAL', 'ENSAMBLE', 'RETEST')
+        AND id != NEW.id;
         
-        -- Actualizar los registros intermedios como completados
-        UPDATE "Registro"
-        SET estado = 'SN_OK',
-            "createdAt" = now()
-        WHERE "modemId" = v_modem_id
-        AND fase IN ('TEST_INICIAL', 'COSMETICA', 'ENSAMBLE', 'RETEST')
-        AND estado != 'SN_OK';
-        
-        -- Registrar la limpieza
+        -- Registrar inicio de limpieza
         INSERT INTO "Log"(accion, entidad, detalle, "userId", "createdAt")
-        VALUES('OPTIMIZACION', 'MODEM', 
-              format('Limpieza de registros intermedios para modem id:%s', v_modem_id),
-              NEW."responsableId", now());
+        VALUES(
+            'LIMPIEZA_INICIO', 
+            'REGISTRO', 
+            format('Limpiando %s registros intermedios para modem id:%s', v_count, NEW."modemId"),
+            NEW."userId", 
+            now()
+        );
+        
+        -- Eliminar registros intermedios
+        DELETE FROM "Registro"
+        WHERE "modemId" = NEW."modemId"
+        AND fase IN ('TEST_INICIAL', 'ENSAMBLE', 'RETEST')
+        AND id != NEW.id;
+        
+        -- Registrar finalización
+        INSERT INTO "Log"(accion, entidad, detalle, "userId", "createdAt")
+        VALUES(
+            'LIMPIEZA_COMPLETADA', 
+            'REGISTRO', 
+            format('Completada limpieza de registros intermedios para modem id:%s', NEW."modemId"),
+            NEW."userId", 
+            now()
+        );
     END IF;
     
     RETURN NEW;
@@ -409,16 +489,20 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER auto_limpiar_registros
-AFTER UPDATE OF "faseActual" ON "Modem"
+AFTER INSERT ON "Registro"
 FOR EACH ROW
-WHEN (NEW."faseActual" = 'EMPAQUE' AND OLD."faseActual" != 'EMPAQUE')
+WHEN (NEW.fase = 'EMPAQUE')
 EXECUTE FUNCTION limpiar_registros_intermedios();
 
--- ===================== 10) OPTIMIZACIÓN DE LOGS NO IMPORTANTES =================
+-- ===================== 11) OPTIMIZACIÓN DE LOGS NO IMPORTANTES =================
 CREATE OR REPLACE FUNCTION filtrar_logs_no_importantes()
 RETURNS TRIGGER AS $$
 DECLARE
-    v_acciones_importantes TEXT[] := ARRAY['ERROR', 'ERROR_VALIDACION', 'CAMBIO_FASE', 'BORRADO_LOGICO', 'SCRAP', 'OPTIMIZACION'];
+    v_acciones_importantes TEXT[] := ARRAY[
+        'ERROR', 'ERROR_VALIDACION', 'CAMBIO_FASE', 'BORRADO_LOGICO', 'SCRAP', 
+        'OPTIMIZACION', 'DEBUG_FASE', 'VIOLACION_REGLA', 'PREVENCION_DUPLICADO',
+        'LIMPIEZA', 'TRANSICION_ESPECIAL', 'LIMPIEZA_INICIO', 'LIMPIEZA_COMPLETADA'
+    ];
 BEGIN
     -- Si la acción está en la lista de acciones importantes, permitir
     IF NEW.accion = ANY(v_acciones_importantes) THEN
@@ -439,3 +523,79 @@ CREATE TRIGGER filtrar_logs
 BEFORE INSERT ON "Log"
 FOR EACH ROW
 EXECUTE FUNCTION filtrar_logs_no_importantes();
+
+-- ===================== 12) LIMPIAR REGISTROS DUPLICADOS DE EMPAQUE =================
+-- Script para eliminar registros duplicados existentes
+DO $$
+DECLARE
+    r RECORD;
+    v_admin_id INTEGER;
+BEGIN
+    -- Obtener un ID de usuario administrador
+    SELECT id INTO v_admin_id FROM "User" WHERE rol IN ('UA', 'UAI') LIMIT 1;
+    IF v_admin_id IS NULL THEN
+        v_admin_id := (SELECT id FROM "User" WHERE id = 1); -- Fallback a ID 1
+    END IF;
+    
+    -- Identificar registros duplicados en fase EMPAQUE por modemId
+    FOR r IN (
+        SELECT "modemId", MIN(id) as id_a_conservar
+        FROM "Registro"
+        WHERE fase = 'EMPAQUE'
+        GROUP BY "modemId"
+        HAVING COUNT(*) > 1
+    ) LOOP
+        -- Elimina todos los registros duplicados excepto el de menor ID
+        DELETE FROM "Registro" 
+        WHERE "modemId" = r."modemId" 
+        AND fase = 'EMPAQUE'
+        AND id != r.id_a_conservar;
+        
+        -- Log de limpieza
+        INSERT INTO "Log"(accion, entidad, detalle, "userId", "createdAt")
+        VALUES('LIMPIEZA', 'REGISTRO', 
+              format('Eliminados registros duplicados de EMPAQUE para modem id:%s', r."modemId"),
+              v_admin_id, now());
+    END LOOP;
+END $$;
+
+-- ===================== 13) LIMPIEZA INICIAL DE REGISTROS INTERMEDIOS =================
+-- Ejecutar una limpieza de todos los registros intermedios existentes
+DO $$
+DECLARE
+    r RECORD;
+    v_admin_id INTEGER;
+    v_count INTEGER;
+BEGIN
+    -- Obtener un ID de usuario administrador
+    SELECT id INTO v_admin_id FROM "User" WHERE rol IN ('UA', 'UAI') LIMIT 1;
+    IF v_admin_id IS NULL THEN
+        v_admin_id := (SELECT id FROM "User" WHERE id = 1); -- Fallback a ID 1
+    END IF;
+    
+    -- Obtener todos los modems que ya están en EMPAQUE
+    FOR r IN (
+        SELECT DISTINCT "modemId" 
+        FROM "Registro"
+        WHERE fase = 'EMPAQUE'
+    ) LOOP
+        -- Contar registros intermedios
+        SELECT COUNT(*) INTO v_count
+        FROM "Registro"
+        WHERE "modemId" = r."modemId"
+        AND fase IN ('TEST_INICIAL', 'ENSAMBLE', 'RETEST');
+        
+        IF v_count > 0 THEN
+            -- Eliminar registros intermedios
+            DELETE FROM "Registro"
+            WHERE "modemId" = r."modemId"
+            AND fase IN ('TEST_INICIAL', 'ENSAMBLE', 'RETEST');
+            
+            -- Log de limpieza
+            INSERT INTO "Log"(accion, entidad, detalle, "userId", "createdAt")
+            VALUES('LIMPIEZA_INICIAL', 'REGISTRO', 
+                  format('Limpieza inicial: Eliminados %s registros intermedios para modem id:%s', v_count, r."modemId"),
+                  v_admin_id, now());
+        END IF;
+    END LOOP;
+END $$;

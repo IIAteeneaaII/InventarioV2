@@ -80,6 +80,7 @@ exports.guardarRegistro = async (req, res) => {
       orderBy: { createdAt: 'desc' },
       take: 1
     });
+    
     if (existeRegistro && Date.now() - new Date(existeRegistro.createdAt).getTime() < 6000) {
       return res.status(400).json({ error: 'Este número de serie ya fue escaneado en los últimos 6 segundos.' });
     }
@@ -156,7 +157,43 @@ exports.guardarRegistro = async (req, res) => {
             throw new Error(`Para empaque, el módem debe estar en fase RETEST, no en ${modem.faseActual}.`);
           }
           
-          // Actualizar a fase EMPAQUE usando SQL nativo para evitar problemas de case sensitivity
+          // Verificar si ya existe un registro de EMPAQUE para este modem
+          const registroExistente = await tx.registro.findFirst({
+            where: {
+              modemId: modem.id,
+              fase: 'EMPAQUE'
+            }
+          });
+          
+          if (registroExistente) {
+            console.log(`Registro de EMPAQUE ya existe para modem ${modem.id}, no creando duplicado`);
+            
+            // Actualizar el modem a EMPAQUE (por si acaso)
+            await tx.$executeRaw`
+              UPDATE "Modem" 
+              SET "faseActual" = 'EMPAQUE', 
+                  "responsableId" = ${userId}, 
+                  "updatedAt" = ${new Date()} 
+              WHERE id = ${modem.id}
+            `;
+            
+            // Devolver el registro existente
+            return { 
+              registro: {
+                id: registroExistente.id,
+                sn: sn,
+                fase: 'EMPAQUE', 
+                estado: 'SN_OK',
+                userId: userId,
+                loteId: modem.loteId,
+                modemId: modem.id,
+                user: { id: userId, nombre: req.user.nombre } // Añadir objeto user manual
+              }, 
+              loteId: modem.loteId 
+            };
+          }
+          
+          // Si no hay registro existente, actualizar el modem y crear registro
           await tx.$executeRaw`
             UPDATE "Modem" 
             SET "faseActual" = 'EMPAQUE', 
@@ -165,19 +202,20 @@ exports.guardarRegistro = async (req, res) => {
             WHERE id = ${modem.id}
           `;
           
-          // Actualizar el objeto modem para mantener consistencia
-          modem = {
-            ...modem,
-            faseActual: 'EMPAQUE',
-            responsableId: userId,
-            updatedAt: new Date()
-          };
-
-          // Para el registro relacionado también usar SQL nativo
-          await tx.$executeRaw`
-            INSERT INTO "Registro" ("sn", "fase", "estado", "userId", "loteId", "modemId", "createdAt")
-            VALUES (${modem.sn}, 'EMPAQUE', 'SN_OK', ${userId}, ${modem.loteId}, ${modem.id}, ${new Date()})
-          `;
+          // Crear nuevo registro
+          const nuevoRegistro = await tx.registro.create({
+            data: {
+              sn,
+              fase: 'EMPAQUE',
+              estado: 'SN_OK',
+              userId,
+              loteId: modem.loteId,
+              modemId: modem.id
+            },
+            include: { user: { select: { id: true, nombre: true } } } // Incluir relación de usuario
+          });
+          
+          return { registro: nuevoRegistro, loteId: modem.loteId };
         } else {
           // Lógica normal para otros roles (UTI / UEN / UR)
           const flujo = [FaseProceso.REGISTRO, FaseProceso.TEST_INICIAL, FaseProceso.ENSAMBLE, FaseProceso.RETEST, FaseProceso.EMPAQUE];
@@ -206,30 +244,57 @@ exports.guardarRegistro = async (req, res) => {
         loteActivo = await tx.lote.findUnique({ where: { id: modem.loteId } });
       }
 
-      const registro = await tx.registro.create({
-        data: {
-          sn,
-          fase: rolConfig.fase,
-          estado: estadoRegistro,
-          motivoScrap: motivoScrapEnum,
-          detalleScrap: detalleScrapEnum,
-          userId,
-          loteId: modem.loteId,
-          modemId: modem.id
-        },
-        include: { user: { select: { id: true, nombre: true } } }
-      });
+      // Crear registro (para todos los casos excepto UE que ya lo maneja arriba)
+      if (userRol !== 'UE') {
+        // Primero verificar si ya existe un registro reciente
+        const existeRegistro = await tx.registro.findFirst({
+          where: { 
+            sn, 
+            fase: rolConfig.fase,
+            createdAt: { gte: new Date(Date.now() - 5000) } // últimos 5 segundos
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 1
+        });
+        
+        if (existeRegistro) {
+          console.log(`Registro reciente encontrado para SN:${sn}, fase:${rolConfig.fase}`);
+          return { 
+            registro: {
+              ...existeRegistro,
+              user: { id: userId, nombre: req.user.nombre } // Añadir objeto user manual
+            },
+            loteId: modem.loteId 
+          };
+        }
+        
+        // Si no existe, crear el registro
+        const registro = await tx.registro.create({
+          data: {
+            sn,
+            fase: rolConfig.fase,
+            estado: estadoRegistro,
+            motivoScrap: motivoScrapEnum,
+            detalleScrap: detalleScrapEnum,
+            userId,
+            loteId: modem.loteId,
+            modemId: modem.id
+          },
+          include: { user: { select: { id: true, nombre: true } } } // Incluir la relación de usuario
+        });
 
-      return { registro, loteId: loteActivo ? loteActivo.id : null };
+        return { registro, loteId: loteActivo ? loteActivo.id : null };
+      }
     });
 
     if (req.session) req.session.touch();
 
+    // Asegurarnos de que todos los datos necesarios están presentes
     return res.status(201).json({
       ...resultado.registro,
       loteId: resultado.loteId,
       success: true,
-      userName: resultado.registro.user ? resultado.registro.user.nombre : null
+      userName: resultado.registro.user ? resultado.registro.user.nombre : req.user.nombre // Fallback a user actual
     });
   } catch (error) {
     console.error('Error al guardar el registro:', error);

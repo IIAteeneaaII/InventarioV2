@@ -7,26 +7,14 @@
   font-weight: bold;
 }
 
-.status-indicator .ready {
-  color: #0275d8;
-}
+/* Colores de estado SOLO en el indicador, no en la tabla */
+.status-indicator .ready { color: #0275d8; }
+.status-indicator .processing { color: #f0ad4e; }
+.status-indicator .success { color: #5cb85c; }
+.status-indicator .error { color: #d9534f; }
+.status-indicator .warning { color: #f0ad4e; }
 
-.status-indicator .processing {
-  color: #f0ad4e;
-}
-
-.status-indicator .success {
-  color: #5cb85c;
-}
-
-.status-indicator .error {
-  color: #d9534f;
-}
-
-.status-indicator .warning {
-  color: #f0ad4e;
-}
-
+/* Contador superior */
 .scan-counter {
   position: fixed;
   top: 80px;
@@ -37,6 +25,7 @@
   border-radius: 4px;
   font-weight: bold;
   z-index: 1000;
+  border-left: 4px solid #007bff; /* destaca el SKU */
 }
 
 /* Mejoras para el formulario de escaneo */
@@ -66,44 +55,43 @@
   cursor: pointer;
   transition: background-color 0.2s;
 }
-
-#guardar-btn:hover {
-  background-color: #218838;
-}
+#guardar-btn:hover { background-color: #218838; }
 
 #finalizar-lote-btn {
-    width: 100%;
-    padding: 12px;
-    background-color: #dc3545;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 1em;
-    margin-top: 20px;
-    transition: background-color 0.3s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
+  width: 100%;
+  padding: 12px;
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1em;
+  margin-top: 20px;
+  transition: background-color 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
-
-
-#finalizar-lote-btn:hover {
-  background-color: #c82333;
-}
+#finalizar-lote-btn:hover { background-color: #c82333; }
 
 /* Estilo para filas en la tabla */
 #registros-body tr {
   transition: background-color 0.3s ease;
+  background-color: transparent; /* por defecto, sin color */
 }
 
-#registros-body tr:first-child {
+/* QUITAMOS el highlight automático en la primera fila */
+/*#registros-body tr:first-child {
   background-color: rgba(40, 167, 69, 0.1);
-}
+}*/
 
+/* Colores especiales */
 .fila-scrap {
   background-color: rgba(220, 53, 69, 0.1) !important;
+}
+.fila-duplicado {
+  background-color: rgba(2, 117, 216, 0.15) !important; /* azul claro solo duplicados */
 }
 
 /* Mejoras de rendimiento */
@@ -113,29 +101,7 @@
   margin-top: 20px;
 }
 
-@media (max-width: 768px) {
-  .scan-counter {
-    top: 5px;
-    right: 5px;
-    padding: 3px 6px;
-    font-size: 0.8em;
-  }
-}/* Añadir a tu archivo escaneo.css */
-.scan-counter {
-  position: fixed;
-  top: 80px;
-  right: 10px;
-  background: #333;
-  color: white;
-  padding: 5px 10px;
-  border-radius: 4px;
-  font-weight: bold;
-  z-index: 1000;
-  /* Destacar más el SKU en el contador */
-  border-left: 4px solid #007bff;
-}
-
-/* Añadir un indicador visual del SKU actual */
+/* Indicador visual del SKU actual */
 .sku-indicator {
   position: fixed;
   top: 80px;
@@ -148,36 +114,29 @@
   z-index: 1000;
 }
 
-/* Añadir esta clase a cada vista de formato_registro */
-.formato-container[data-sku] {
-  position: relative;
-  border-top: 4px solid;
-  padding-top: 10px;
-}
-
 /* Estilos para el botón Auto-Enter */
 .btn-toggle {
-    padding: 10px 15px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 14px;
-    transition: all 0.3s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    margin-top: 10px; /* Espacio arriba del botón */
-    width: 100%; /* Mismo ancho que los demás botones */
+  padding: 10px 15px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+  width: 100%;
 }
+.autoenter-on { background-color: #4CAF50; color: white; }
+.autoenter-off { background-color: #f44336; color: white; }
 
-.autoenter-on {
-    background-color: #4CAF50; /* Verde cuando está activado */
-    color: white;
+@media (max-width: 768px) {
+  .scan-counter {
+    top: 5px;
+    right: 5px;
+    padding: 3px 6px;
+    font-size: 0.8em;
+  }
 }
-
-.autoenter-off {
-    background-color: #f44336; /* Rojo cuando está desactivado */
-    color: white;
-}
-
