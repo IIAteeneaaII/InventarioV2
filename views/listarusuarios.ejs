@@ -10,6 +10,7 @@
 </head>
 <body>
   <div class="admin-container">
+    <!-- ✅ Header corregido con estructura clara -->
     <div class="user-header">
       <div>
         <h1>Editar usuarios</h1>
@@ -17,24 +18,23 @@
       </div>
       <div class="user-info">
         <div class="user-icon">A</div>
-<div class="user-header" style="justify-content: flex-end;">
-  <button class="btn btn-primary" onclick="window.location.href='/adminventario'">
-    <i class="fas fa-arrow-left"></i> Inicio  
-  </button>
-</div>
-
+        <button class="btn btn-primary" onclick="window.location.href='/adminventario'">
+          <i class="fas fa-arrow-left"></i> Inicio  
+        </button>
       </div>
     </div>
 
-<div class="buscador-row">
-  <div class="busqueda-input-wrap">
-    <input type="text" id="buscadorUsuario" class="input-busqueda" placeholder="Buscar usuario por nombre, email o usuario..." />
-    <button type="button" class="btn btn-secondary btn-busqueda-limpiar" onclick="resetBusqueda()">
-      <i class="fas fa-times"></i> Borrar
-    </button>
-  </div>
-  <select id="filtroRol" class="input-select">
-    <option value="">Todas las áreas</option>
+    <!-- ✅ Sección principal con contenedor apropiado -->
+    <section class="main-content">
+      <div class="buscador-row">
+        <div class="busqueda-input-wrap">
+          <input type="text" id="buscadorUsuario" class="input-busqueda" placeholder="Buscar usuario por nombre, email o usuario..." />
+          <button type="button" class="btn btn-secondary btn-busqueda-limpiar" onclick="resetBusqueda()">
+            <i class="fas fa-times"></i> Borrar
+          </button>
+        </div>
+        <select id="filtroRol" class="input-select">
+          <option value="">Todas las áreas</option>
           <option value="UAI">Administrador Inventario</option>
           <option value="UA">Usuario Almacén</option>
           <option value="UV">Visualizador</option>
@@ -46,6 +46,7 @@
           <option value="ULL">Liberación/Limpieza</option>
         </select>
       </div>
+      
       <div class="table-container">
         <table class="usuarios-table">
           <thead>
@@ -83,9 +84,7 @@
                     <a href="/editarusuario/<%= usuario.id %>" class="btn btn-secondary btn-editar-link" title="Editar">
                       <i class="fas fa-edit"></i>
                     </a>
-                    <button class="btn btn-eliminar acciones-btn" data-id="<%= usuario.id %>" title="Eliminar">
-                      <i class="fas fa-trash-alt"></i>
-                    </button>
+                    
                     <label class="switch-toggle" title="Activar/Desactivar cuenta">
                       <input 
                         type="checkbox" 
@@ -107,6 +106,7 @@
           </tbody>
         </table>
       </div>
+      
       <div class="paginador-row">
         <button id="anteriorPag" class="btn btn-secondary"><i class="fas fa-arrow-left"></i></button>
         <span id="paginaActual">1</span>
@@ -114,20 +114,24 @@
       </div>
     </section>
   </div>
+
   <script src="https://cdn.jsdelivr.net/npm/just-validate@4.3.0/dist/just-validate.production.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="/js/swalConfig.js"></script>
   <script src="/js/cerrarsesion.js"></script>
   <script src="/js/admin.js"></script>
+  
   <script>
     // --- Constantes para paginación y filtros
     const filasPorPagina = 10;
     let paginaActual = 1;
     let usuarios = [];
+    
     // Cargar los usuarios del backend (la variable EJS "usuarios")
     <% if (typeof usuarios !== 'undefined') { %>
       usuarios = <%- JSON.stringify(usuarios) %>;
     <% } %>
+    
     let usuariosFiltrados = usuarios;
 
     // --- Renderizar tabla paginada
@@ -137,10 +141,12 @@
       const inicio = (paginaActual - 1) * filasPorPagina;
       const fin = inicio + filasPorPagina;
       const pagina = usuariosFiltrados.slice(inicio, fin);
+      
       if (pagina.length === 0) {
         tbody.innerHTML = `<tr><td colspan="5">No hay usuarios registrados.</td></tr>`;
         return;
       }
+      
       pagina.forEach(usuario => {
         tbody.innerHTML += `
           <tr data-nombre="${usuario.nombre.toLowerCase()}"
@@ -155,9 +161,7 @@
               <a href="/editarusuario/${usuario.id}" class="btn btn-secondary btn-editar-link" title="Editar">
                 <i class="fas fa-edit"></i>
               </a>
-              <button class="btn btn-eliminar acciones-btn" data-id="${usuario.id}" title="Eliminar">
-                <i class="fas fa-trash-alt"></i>
-              </button>
+              
               <label class="switch-toggle" title="Activar/Desactivar cuenta">
                 <input 
                   type="checkbox" 
@@ -220,6 +224,7 @@
         renderTabla();
       }
     });
+    
     document.getElementById('siguientePag').addEventListener('click', () => {
       if (paginaActual < Math.ceil(usuariosFiltrados.length / filasPorPagina)) {
         paginaActual++;
@@ -227,8 +232,25 @@
       }
     });
 
+    // ✅ Event listener para toggles de estado activo
+    document.addEventListener('change', function(e) {
+      if (e.target.classList.contains('toggle-activo')) {
+        const userId = e.target.getAttribute('data-id');
+        const isActive = e.target.checked;
+        
+        // Aquí puedes hacer la llamada AJAX para actualizar el estado
+        console.log(`Usuario ${userId} cambiado a: ${isActive ? 'activo' : 'inactivo'}`);
+        
+        // Actualizar el texto del estado
+        const estadoTexto = e.target.closest('td').querySelector('.estado-texto');
+        estadoTexto.textContent = isActive ? 'Activo' : 'Inactivo';
+      }
+    });
+
     // Inicializar tabla en primer render
-    renderTabla();
+    document.addEventListener('DOMContentLoaded', function() {
+      renderTabla();
+    });
   </script>
 </body>
 </html>
