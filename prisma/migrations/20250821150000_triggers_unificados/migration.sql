@@ -1,4 +1,5 @@
 -- Migración para implementar triggers del sistema optimizada
+-- Actualizado el 2025-08-22 17:12:54 por hugohdez8
 -- Versión unificada con fix para duplicación en EMPAQUE y limpieza de registros intermedios
 
 -- Asegurar lenguaje PL/pgSQL
