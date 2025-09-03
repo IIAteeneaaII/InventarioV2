@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>CAPTUA NUMEROS DE SERIE</title>
 
-  <!-- Tus estilos existentes -->
-  <link rel="stylesheet" href="/css/formatoB.css" />
+  <!-- Estilos -->
+  <link rel="stylesheet" href="/css/formatoC.css" />
   <link rel="stylesheet" href="/css/escaneo.css" />
 
   <!-- Librerías -->
@@ -14,6 +14,9 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css"/>
   <script src="/js/sweetalert-controller.js"></script>
 </head>
+<body>
+  <div class="app-container">
+    <!-- Sección del usuario -->
     <div class="top-right">
       <img src="/img/usuario.webp" alt="Usuario" class="user-icon" />
       <div class="username" id="username-display"><%= user.userName %></div>
@@ -26,7 +29,7 @@
 
     <!-- Sección del formulario -->
     <div class="form-section">
-      <h1>4K ALEXA - 73488</h1>
+      <h1>AP EH7 - 80333</h1>
 
       <div class="form-group">
         <label>Escanear:</label>
@@ -37,7 +40,12 @@
         <input type="text" id="sn-input" placeholder="Ingrese el número de serie" />
       </div>
 
-      <!-- Motivo de Scrap (el JS scrap-toggle controla su visibilidad) -->
+      <div class="form-group">
+        <label>Reparaciones</label>
+        <input type="text" id="reparaciones-input" placeholder="Ingrese código de reparación" />
+      </div>
+
+      <!-- Motivo de Scrap -->
       <div class="form-group motivo-scrap-group">
         <input type="text" id="scrap-input" name="scrap" hidden />
         <label class="required" for="motivo-scrap">Motivo de Scrap</label>
@@ -49,7 +57,7 @@
         </select>
       </div>
 
-      <!-- Botón SCRAP ON/OFF (estado inicial OFF/rojo; lo maneja scrap-toggle.js) -->
+      <!-- Botón SCRAP ON/OFF -->
       <button class="btn-toggle is-off" id="autoenter-toggle" title="SCRAP desactivado">
         <i class="fas fa-keyboard"></i> SCRAP: OFF
       </button>
@@ -74,7 +82,7 @@
     <div class="table-section">
       <h1>Historial de Registros</h1>
 
-      <!-- Barra de búsqueda (la lógica la hace tu historial-search.js) -->
+      <!-- Barra de búsqueda -->
       <div class="historial-search">
         <div class="search-bar">
           <i class="fas fa-search search-icon" aria-hidden="true"></i>
@@ -125,20 +133,19 @@
   <!-- Librerías -->
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-  <!-- Scripts existentes -->
+  <!-- Scripts -->
   <script src="/js/cerrarsesion.js"></script>
   <script src="/js/formato-captura.js"></script>
-
-  <!-- Referencias a tus JS ya existentes (sin lógica inline) -->
   <script src="/js/scrap-toggle.js" defer></script>
   <script src="/js/historial-search.js" defer></script>
 
-  <!-- Inicialización de usuario y volver -->
+  <!-- Inicialización de usuario -->
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       window.user = window.user || JSON.parse(`<%- JSON.stringify(user || {}) %>`);
-      const volverBtn = document.getElementById('volver-btn');
-      if (volverBtn) volverBtn.addEventListener('click', () => window.history.back());
+      document.getElementById('volver-btn').addEventListener('click', function() {
+        window.history.back();
+      });
     });
   </script>
 </body>

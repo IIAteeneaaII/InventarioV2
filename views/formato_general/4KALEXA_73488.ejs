@@ -6,7 +6,7 @@
   <title>CAPTUA NUMEROS DE SERIE</title>
 
   <!-- Tus estilos existentes -->
-  <link rel="stylesheet" href="/css/formatoB.css" />
+  <link rel="stylesheet" href="/css/formatoC.css" />
   <link rel="stylesheet" href="/css/escaneo.css" />
 
   <!-- Librerías -->
@@ -141,60 +141,16 @@
   <script src="/js/scrap-toggle.js" defer></script>
   <script src="/js/historial-search.js" defer></script>
 
-            <button id="volver-btn" class="btn-secondary">
-                <i class="fas fa-arrow-left"></i> Volver
-            </button>
-            
-            
-        </div>
-        
-        <!-- Sección de la tabla -->
-        <div class="table-section">
-            <h1>Historial de Registros</h1>
-            
-            <div class="table-container">
-                <table class="registros-table">
-                    <thead>
-                        <tr>
-                            <th>ID (Usuario)</th>
-                            <th>N/S</th>
-                            <th>Fecha</th>
-                            <th>Registro</th>
-                            <th>Tipo</th>
-                        </tr>
-                    </thead>
-                    <tbody id="registros-body">
-                        <!-- El historial de registros se carga aquí desde el backend -->
-                        <% if (typeof registros !== 'undefined' && registros.length > 0) { %>
-                          <% registros.forEach(registro => { %>
-                            <tr class="<%= registro.estado.includes('SCRAP') ? 'fila-scrap' : '' %>">
-                              <td><%= registro.user.nombre %></td>
-                              <td><%= registro.sn %></td>
-                              <td><%= new Date(registro.createdAt).toLocaleString('es-MX') %></td>
-                              <td><%= registro.estado %></td>
-                              <td><%= registro.motivoScrap ? registro.motivoScrap.replace(/_/g, ' ') : 'N/A' %></td>
-                            </tr>
-                          <% }); %>
-                        <% } %>  
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="/js/cerrarsesion.js"></script>
-    <!-- Script centralizado para la captura -->
-    <script src="/js/formato-captura.js"></script>
-    <!-- Inicialización de usuario -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-          window.user = window.user || JSON.parse(`<%- JSON.stringify(user || {}) %>`);
-           
-           // Añadir listener para el botón de volver
-           document.getElementById('volver-btn').addEventListener('click', function() {
-               window.history.back();
-           });
-        });
-</script>
+  <!-- Inicialización de usuario -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      window.user = window.user || JSON.parse(`<%- JSON.stringify(user || {}) %>`);
+       
+      // Añadir listener para el botón de volver
+      document.getElementById('volver-btn').addEventListener('click', function() {
+        window.history.back();
+      });
+    });
+  </script>
 </body>
 </html>
