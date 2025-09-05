@@ -30,6 +30,16 @@
     <!-- Sección del formulario -->
     <div class="form-section">
       <h1>EXTENDER AP - 72608</h1>
+       <!-- Instrucciones -->
+      <div class="instrucciones">
+        <p><strong>Instrucciones:</strong></p>
+        <ul>
+          <li>Escanee o ingrese el número de serie (S/N).</li>
+          <li>Presione ENTER o haga clic en "Guardar" para registrar.</li>
+          <li>El sistema convertirá automáticamente a <strong>MAYÚSCULAS</strong>.</li>
+          <li>Para SCRAP: active el botón (ON) y seleccione un motivo.</li>
+        </ul>
+      </div>
 
       <div class="form-group">
         <label>Escanear:</label>
@@ -61,13 +71,13 @@
       <button class="btn-toggle is-off" id="autoenter-toggle" title="SCRAP desactivado">
         <i class="fas fa-keyboard"></i> SCRAP: OFF
       </button>
+      <div class="status-indicator"><span class="ready">Listo para escanear</span></div>
 
       <!-- Botón Guardar -->
       <button class="btn-confirmar" id="guardar-btn">
         <i class="fas fa-save"></i> GUARDAR REGISTRO
       </button>
 
-      <div class="status-indicator"><span class="ready">Listo para escanear</span></div>
 
       <button id="volver-btn" class="btn-secondary">
         <i class="fas fa-arrow-left"></i> Volver
@@ -90,7 +100,7 @@
             type="text"
             id="historial-search"
             class="search-input"
-            placeholder="Buscar en historial (usuario, N/S, fecha, registro, tipo)…"
+            placeholder="        Buscar en historial (usuario, N/S, fecha, registro, tipo)…"
             autocomplete="off"
             aria-label="Buscar en historial de registros"
           />
