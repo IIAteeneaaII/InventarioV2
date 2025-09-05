@@ -253,28 +253,9 @@ input[type="text"]:focus, select:focus {
     color: #999;
 }
 
-.search-icon {
-    position: absolute;
-    left: 15px;
-    color: #666;
-    font-size: 16px;
-    pointer-events: none;
-    z-index: 2;
-}
 
-.clear-btn {
-    position: absolute;
-    right: 20px; /* Movido de 15px a 20px para más separación del borde */
-    background: #365a66;
-    color: white;
-    border: none;
-    border-radius: 15px;
-    padding: 6px 12px;
-    font-size: 0.85em;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-    z-index: 2;
-}
+
+    
 
 .clear-btn:hover {
     background-color: #2d4a54;
