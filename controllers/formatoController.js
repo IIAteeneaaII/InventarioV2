@@ -40,6 +40,7 @@ const getRolConfig = (rol) => {
     UEN: { fase: FaseProceso.ENSAMBLE, carpeta: 'formato_general' },
     UTI: { fase: FaseProceso.TEST_INICIAL, carpeta: 'formato_general' },
     UR: { fase: FaseProceso.RETEST, carpeta: 'formato_general' },
+    URep: { fase: FaseProceso.REPARACION, carpeta: 'formato_reparacion' },
     UA: { fase: FaseProceso.REGISTRO, carpeta: 'formato_registro' }
   };
   

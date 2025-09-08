@@ -197,6 +197,104 @@ async function main() {
     $$ LANGUAGE plpgsql;
   `);
 
+  // ========== SEED DE CÓDIGOS DE REPARACIÓN ==========
+  console.log('Iniciando seed de códigos de reparación...');
+  
+  const codigosReparacion = [
+    { codigo: 'N001', descripcion: 'EQUIPO OK' },
+    { codigo: 'N002', descripcion: 'LIMPIEZA' },
+    { codigo: 'N003', descripcion: 'RESTAURACION' },
+    { codigo: 'N004', descripcion: 'RESETEO' },
+    { codigo: 'N005', descripcion: 'REINSTALACION DE FIRMWARE' },
+    { codigo: 'N006', descripcion: 'CAMBIO DE CONECTORES' },
+    { codigo: 'N007', descripcion: 'RESOLDE' },
+    { codigo: 'N008', descripcion: 'RESOLDE DE BGA' },
+    { codigo: 'N009', descripcion: 'CAMBIO DE COMPONENTE DISCRETO TH' },
+    { codigo: 'N010', descripcion: 'CAMBIO DE COMPONENTE DISCRETO SMT' },
+    { codigo: 'N011', descripcion: 'CAMBIO DE CI ANALOGICO TH' },
+    { codigo: 'N012', descripcion: 'CAMBIO DE CI ANALOGICO SMT' },
+    { codigo: 'N013', descripcion: 'CAMBIO DE CI DIGITAL TH' },
+    { codigo: 'N014', descripcion: 'CAMBIO DE CI DIGITAL SMT' },
+    { codigo: 'N015', descripcion: 'LIMPIEZA CONECTOR DE FO' },
+    { codigo: 'N016', descripcion: 'NO SE ESPECIFICA' },
+    { codigo: 'SC1', descripcion: 'SCRAP ORIGEN' },
+    { codigo: 'SC2', descripcion: 'SCRAP PROCESO' },
+    { codigo: 'SC3', descripcion: 'SCRAP FUERA DE ALCANCE' }
+  ];
+
+  for (const codigo of codigosReparacion) {
+    await prisma.codigoReparacion.upsert({
+      where: { codigo: codigo.codigo },
+      update: { descripcion: codigo.descripcion },
+      create: {
+        codigo: codigo.codigo,
+        descripcion: codigo.descripcion
+      }
+    });
+  }
+  console.log('Códigos de reparación seed completado');
+
+  // ========== SEED DE CÓDIGOS DE DAÑO ==========
+  console.log('Iniciando seed de códigos de daño...');
+  
+  // Primero obtenemos los IDs de los códigos de reparación
+  const codigosRep = await prisma.codigoReparacion.findMany({
+    select: { id: true, codigo: true }
+  });
+  
+  const getRepId = (codigo) => codigosRep.find(c => c.codigo === codigo)?.id;
+
+  const codigosDano = [
+    { codigo: 'D000', descripcion: 'EQUIPO OK', codigoRepId: getRepId('N001'), nivelRep: 'NA', scrap: 'NA' },
+    { codigo: 'D001', descripcion: 'LIMPIEZA (POLVO, TIERRA, GRASA)', codigoRepId: getRepId('N002'), nivelRep: 'N1', scrap: 'NA' },
+    { codigo: 'D002', descripcion: 'PROGRAMA/CONFIGURACION BORRADA O DEFECTUOSA', codigoRepId: getRepId('N003'), nivelRep: 'N1', scrap: 'NA' },
+    { codigo: 'D003', descripcion: 'PROGRAMA COLGADO', codigoRepId: getRepId('N004'), nivelRep: 'N1', scrap: 'NA' },
+    { codigo: 'D004', descripcion: 'ACTUALIZACION DE FIRMWARE', codigoRepId: getRepId('N005'), nivelRep: 'N1', scrap: 'NA' },
+    { codigo: 'D005', descripcion: 'CONECTOR ROTO, MAL CONTACTO', codigoRepId: getRepId('N006'), nivelRep: 'N1', scrap: 'NA' },
+    { codigo: 'D006', descripcion: 'SOLDADURA CRISTALIZADA', codigoRepId: getRepId('N007'), nivelRep: 'N1', scrap: 'NA' },
+    { codigo: 'D007', descripcion: 'SOLDADURA CRISTALIZADA DE BGA', codigoRepId: getRepId('N008'), nivelRep: 'N2', scrap: 'NA' },
+    { codigo: 'D008', descripcion: 'DEFECTO DE COMPONENTE DISCRETO TH', codigoRepId: getRepId('N009'), nivelRep: 'N1', scrap: 'NA' },
+    { codigo: 'D009', descripcion: 'DEFECTO DE COMPONENTE DISCRETO SMT', codigoRepId: getRepId('N010'), nivelRep: 'N2', scrap: 'NA' },
+    { codigo: 'D010', descripcion: 'DEFECTO DE CI ANALOGICO TH', codigoRepId: getRepId('N011'), nivelRep: 'N1', scrap: 'NA' },
+    { codigo: 'D011', descripcion: 'DEFECTO DE CI ANALOGICO SMT', codigoRepId: getRepId('N012'), nivelRep: 'N2', scrap: 'NA' },
+    { codigo: 'D012', descripcion: 'DEFECTO DE CI DIGITAL TH', codigoRepId: getRepId('N013'), nivelRep: 'N1', scrap: 'NA' },
+    { codigo: 'D013', descripcion: 'DEFECTO DE CI DIGITAL SMT', codigoRepId: getRepId('N014'), nivelRep: 'N2', scrap: 'NA' },
+    { codigo: 'D014', descripcion: 'DAÑO IRREVERSIBLE EN PCB', codigoRepId: getRepId('SC3'), nivelRep: 'N2_PLUS', scrap: 'SC3' },
+    { codigo: 'D015', descripcion: 'COMPONENTE NO DISPONIBLE', codigoRepId: getRepId('SC3'), nivelRep: 'N2_PLUS', scrap: 'SC3' },
+    { codigo: 'D016', descripcion: 'CONECTOR DE FO SUCIO', codigoRepId: getRepId('N015'), nivelRep: 'N1', scrap: 'NA' },
+    { codigo: 'D017', descripcion: 'DEFECTO DE PUERTO LAN', codigoRepId: getRepId('N010'), nivelRep: 'N2', scrap: 'NA' },
+    { codigo: 'D018', descripcion: 'DEFECTO DE PUERTO USB', codigoRepId: getRepId('N010'), nivelRep: 'N2', scrap: 'NA' },
+    { codigo: 'D019', descripcion: 'DEFECTO DE PUERTO POWER', codigoRepId: getRepId('N010'), nivelRep: 'N2', scrap: 'NA' },
+    { codigo: 'D020', descripcion: 'DEFECTO DE LED INDICADOR', codigoRepId: getRepId('N010'), nivelRep: 'N2', scrap: 'NA' },
+    { codigo: 'D021', descripcion: 'DEFECTO DE BOTON RESET', codigoRepId: getRepId('N010'), nivelRep: 'N2', scrap: 'NA' },
+    { codigo: 'D022', descripcion: 'FALLA DE COMUNICACION DE RF', codigoRepId: getRepId('N013'), nivelRep: 'N2', scrap: 'NA' },
+    { codigo: 'D023', descripcion: 'FALLA DE PROCESAMIENTO', codigoRepId: getRepId('N013'), nivelRep: 'N2', scrap: 'NA' },
+    { codigo: 'D024', descripcion: 'FALLA DE MEMORIA', codigoRepId: getRepId('N013'), nivelRep: 'N2', scrap: 'NA' },
+    { codigo: 'D025', descripcion: 'NO SE ESPECIFICA', codigoRepId: getRepId('N016'), nivelRep: 'N1', scrap: 'NA' },
+    { codigo: 'B001', descripcion: 'BASE CON DEFECTO COSMETICO', codigoRepId: getRepId('SC1'), nivelRep: 'NA', scrap: 'SC1' },
+    { codigo: 'B002', descripcion: 'BASE CON INFESTACION', codigoRepId: getRepId('SC1'), nivelRep: 'NA', scrap: 'SC1' }
+  ];
+
+  for (const codigo of codigosDano) {
+    await prisma.codigoDano.upsert({
+      where: { codigo: codigo.codigo },
+      update: { 
+        descripcion: codigo.descripcion,
+        codigoRepId: codigo.codigoRepId,
+        nivelRep: codigo.nivelRep,
+        scrap: codigo.scrap
+      },
+      create: {
+        codigo: codigo.codigo,
+        descripcion: codigo.descripcion,
+        codigoRepId: codigo.codigoRepId,
+        nivelRep: codigo.nivelRep,
+        scrap: codigo.scrap
+      }
+    });
+  }
+  console.log('Códigos de daño seed completado');
+
 }
 
 main()
