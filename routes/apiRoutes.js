@@ -10,11 +10,12 @@ const procesamientoController = require('../controllers/procesamientoController.
 const empaqueController = require('../controllers/empaqueController');
 const scrapController = require('../controllers/scrapController');
 const loteController = require('../controllers/loteController');
+const reparacionController = require('../controllers/reparacionController');
 const { replaceBigIntWithNumber } = require('../utils/dataUtils');
 
 // Ruta para guardar registros de los formatos de captura (empaque, registro, general, etc.)
 router.post('/registros',
-  verificarRol(['UReg', 'UA', 'UTI', 'UR', 'UE', 'UEN']), // UEN ahora escanea
+  verificarRol(['UReg', 'UA', 'UTI', 'UR', 'URep', 'UE', 'UEN']), // UEN ahora escanea
   formatoController.guardarRegistro
 );
 
@@ -31,9 +32,17 @@ router.get('/registro/historial/:loteId', registroController.obtenerHistorial);
 // ...existing code...
 
 // Rutas de procesamiento
-router.post('/proceso/modem', verificarRol(['UTI', 'UR', 'UEN']), procesamientoController.procesarModem);
-router.post('/proceso/reparacion', verificarRol(['UR', 'UTI']), procesamientoController.registrarReparacion);
+router.post('/proceso/modem', verificarRol(['UTI', 'UR', 'URep', 'UEN']), procesamientoController.procesarModem);
+router.post('/proceso/reparacion', verificarRol(['URep', 'UTI']), procesamientoController.registrarReparacion);
 router.post('/proceso/scrap', procesamientoController.registrarScrapProceso);
+
+// Rutas de reparación
+router.get('/reparacion/modems', verificarRol(['URep', 'UTI', 'UA']), reparacionController.listarModemsEnReparacion);
+router.post('/reparacion/diagnostico', verificarRol(['URep', 'UTI', 'UA']), reparacionController.registrarDiagnostico);
+router.post('/reparacion/completar', verificarRol(['URep', 'UTI', 'UA']), reparacionController.completarReparacion);
+router.get('/reparacion/historial/:sn', verificarRol(['URep', 'UTI', 'UA']), reparacionController.obtenerHistorialReparaciones);
+router.get('/reparacion/codigos-dano', verificarRol(['URep', 'UTI', 'UA']), reparacionController.obtenerCodigosDano);
+router.get('/reparacion/codigos-reparacion', verificarRol(['URep', 'UTI', 'UA']), reparacionController.obtenerCodigosReparacion);
 
 // Rutas de empaque
 router.post('/empaque/modem', verificarRol(['UE']), empaqueController.registrarModemEmpaque);

@@ -15,6 +15,7 @@ async function main() {
     { nombre: 'Registro', userName: 'Registro', email: 'registro@ram.com', rol: 'UReg' },
     { nombre: 'TestInicial', userName: 'Testini', email: 'testinicial@ram.com', rol: 'UTI' },
     { nombre: 'Retest', userName: 'Retest', email: 'retest@ram.com', rol: 'UR' },
+    { nombre: 'Reparacion', userName: 'Reparacion', email: 'reparacion@ram.com', rol: 'URep' },
     { nombre: 'Cosmetica', userName: 'Cosmetica', email: 'cosmetica@ram.com', rol: 'UC' },
     { nombre: 'Empaque', userName: 'Empaque', email: 'empaque@ram.com', rol: 'UE' },
     { nombre: 'Ensamble', userName: 'Ensamble', email: 'ensamble@ram.com', rol: 'UEN' },

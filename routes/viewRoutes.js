@@ -106,7 +106,7 @@ router.get('/registro',
 
 // Ruta principal para selección de lote
 router.get('/seleccionlote', 
-  verificarRol(['UA', 'UTI', 'UR', 'UE', 'UEN', 'UReg']),
+  verificarRol(['UA', 'UTI', 'UR', 'URep', 'UE', 'UEN', 'UReg']),
   (req, res) => {
     res.render('seleccion_modelo', { user: req.user });
   }
@@ -117,6 +117,14 @@ router.get('/almacen',
   verificarRol(['UA']),
   (req, res) => {
       res.render('almacen_dashboard', { user: req.user });
+  }
+);
+
+// Dashboard para Reparación
+router.get('/reparacion', 
+  verificarRol(['URep', 'UTI', 'UA']),
+  (req, res) => {
+      res.render('seleccion_modelo', { user: req.user });
   }
 );
 
@@ -276,7 +284,7 @@ router.get('/resumen', verificarRol(['UAI', 'UA']), async (req, res) => {
 });
 
 router.get('/terminos', 
-  verificarRol(['UA', 'UTI', 'UR', 'UC', 'UE', 'ULL','UReg', 'UAI']),
+  verificarRol(['UA', 'UTI', 'UR', 'URep', 'UC', 'UE', 'ULL','UReg', 'UAI']),
   (req, res) => {
       res.render('terminos', { user: req.user });
   }
@@ -295,7 +303,7 @@ router.get('/:carpeta/:sku', async (req, res, next) => {
 
   // Middleware de validación manual para evitar problemas con path-to-regexp
   // y para no interceptar peticiones a /js, /css, etc.
-  const carpetasValidas = ['formato_empaque', 'formato_registro', 'formato_general'];
+  const carpetasValidas = ['formato_empaque', 'formato_registro', 'formato_general', 'formato_reparacion'];
   if (!carpetasValidas.includes(carpeta)) {
     return next(); // IMPORTANTE: Si no es una carpeta de formato, pasa a la siguiente ruta (ej. express.static).
   }

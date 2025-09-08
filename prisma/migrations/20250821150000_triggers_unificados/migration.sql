@@ -32,6 +32,129 @@ DROP TRIGGER IF EXISTS auto_limpiar_registros       ON "Registro"; -- Añadido p
 DROP TRIGGER IF EXISTS optimizar_registros_trigger  ON "Modem";
 DROP TRIGGER IF EXISTS filtrar_logs                 ON "Log";
 DROP TRIGGER IF EXISTS prevenir_duplicados_empaque_trigger ON "Registro";
+DROP TRIGGER IF EXISTS validar_codigos_reparacion_trigger ON "Registro"; -- Limpieza sistema reparaciones
+
+-- ===================== SISTEMA DE REPARACIONES - ARQUITECTURA =====================
+
+-- Crear enum NivelReparacion si no existe
+DO $$ BEGIN
+    CREATE TYPE "NivelReparacion" AS ENUM ('NA', 'N1', 'N2', 'N2_PLUS');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+-- Agregar rol URep si no existe
+DO $$ BEGIN
+    ALTER TYPE "Rol" ADD VALUE 'URep';
+EXCEPTION
+    WHEN invalid_schema_name THEN null;
+    WHEN duplicate_object THEN null;
+END $$;
+
+-- Crear tabla CodigoReparacion si no existe
+CREATE TABLE IF NOT EXISTS "CodigoReparacion" (
+    "id" SERIAL NOT NULL,
+    "codigo" TEXT NOT NULL,
+    "descripcion" TEXT NOT NULL,
+    "activo" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "CodigoReparacion_pkey" PRIMARY KEY ("id")
+);
+
+-- Crear tabla CodigoDano si no existe
+CREATE TABLE IF NOT EXISTS "CodigoDano" (
+    "id" SERIAL NOT NULL,
+    "codigo" TEXT NOT NULL,
+    "descripcion" TEXT NOT NULL,
+    "codigoRepId" INTEGER,
+    "nivelRep" "NivelReparacion",
+    "scrap" TEXT,
+    "activo" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "CodigoDano_pkey" PRIMARY KEY ("id")
+);
+
+-- Agregar columnas a tabla Registro si no existen
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT FROM information_schema.columns 
+        WHERE table_name = 'Registro' AND column_name = 'codigoDanoId'
+    ) THEN
+        ALTER TABLE "Registro" ADD COLUMN "codigoDanoId" INTEGER;
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT FROM information_schema.columns 
+        WHERE table_name = 'Registro' AND column_name = 'codigoReparacionId'
+    ) THEN
+        ALTER TABLE "Registro" ADD COLUMN "codigoReparacionId" INTEGER;
+    END IF;
+END $$;
+
+-- Crear índices únicos si no existen
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace 
+        WHERE c.relname = 'CodigoReparacion_codigo_key' AND n.nspname = 'public'
+    ) THEN
+        CREATE UNIQUE INDEX "CodigoReparacion_codigo_key" ON "CodigoReparacion"("codigo");
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace 
+        WHERE c.relname = 'CodigoDano_codigo_key' AND n.nspname = 'public'
+    ) THEN
+        CREATE UNIQUE INDEX "CodigoDano_codigo_key" ON "CodigoDano"("codigo");
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace 
+        WHERE c.relname = 'Registro_codigoReparacionId_idx' AND n.nspname = 'public'
+    ) THEN
+        CREATE INDEX "Registro_codigoReparacionId_idx" ON "Registro"("codigoReparacionId");
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace 
+        WHERE c.relname = 'Registro_codigoDanoId_idx' AND n.nspname = 'public'
+    ) THEN
+        CREATE INDEX "Registro_codigoDanoId_idx" ON "Registro"("codigoDanoId");
+    END IF;
+END $$;
+
+-- Crear foreign keys si no existen
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT FROM information_schema.table_constraints 
+        WHERE constraint_name = 'CodigoDano_codigoRepId_fkey'
+    ) THEN
+        ALTER TABLE "CodigoDano" ADD CONSTRAINT "CodigoDano_codigoRepId_fkey" 
+        FOREIGN KEY ("codigoRepId") REFERENCES "CodigoReparacion"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT FROM information_schema.table_constraints 
+        WHERE constraint_name = 'Registro_codigoReparacionId_fkey'
+    ) THEN
+        ALTER TABLE "Registro" ADD CONSTRAINT "Registro_codigoReparacionId_fkey" 
+        FOREIGN KEY ("codigoReparacionId") REFERENCES "CodigoReparacion"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT FROM information_schema.table_constraints 
+        WHERE constraint_name = 'Registro_codigoDanoId_fkey'
+    ) THEN
+        ALTER TABLE "Registro" ADD CONSTRAINT "Registro_codigoDanoId_fkey" 
+        FOREIGN KEY ("codigoDanoId") REFERENCES "CodigoDano"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
 
 -- ===================== 1) TRIGGER PARA PREVENIR DUPLICADOS DE EMPAQUE =====================
 CREATE OR REPLACE FUNCTION prevenir_duplicados_empaque()
@@ -86,15 +209,16 @@ BEGIN
     -- Eliminado el bypass para UV que permitía saltar validaciones
 
     -- CTE con columnas nombradas y casteo al enum; se usa en UN SOLO SELECT
+    -- ORDEN CORREGIDO: REPARACION va entre TEST_INICIAL y ENSAMBLE como fase opcional
     WITH fase_order(fase, orden) AS (
       VALUES
         ('REGISTRO'::"FaseProceso",     1),
         ('TEST_INICIAL'::"FaseProceso", 2),
-        ('ENSAMBLE'::"FaseProceso",     3),
-        ('RETEST'::"FaseProceso",       4),
-        ('EMPAQUE'::"FaseProceso",      5),
-        ('SCRAP'::"FaseProceso",        6),
-        ('REPARACION'::"FaseProceso",   7)
+        ('REPARACION'::"FaseProceso",   3),  -- MOVIDO: fase opcional después de TEST_INICIAL
+        ('ENSAMBLE'::"FaseProceso",     4),  -- ACTUALIZADO: antes orden 3
+        ('RETEST'::"FaseProceso",       5),  -- ACTUALIZADO: antes orden 4
+        ('EMPAQUE'::"FaseProceso",      6),  -- ACTUALIZADO: antes orden 5
+        ('SCRAP'::"FaseProceso",        7)   -- ACTUALIZADO: antes orden 6
     )
     SELECT
       MAX(CASE WHEN fase_order.fase = OLD."faseActual" THEN fase_order.orden END),
@@ -136,6 +260,34 @@ BEGIN
         RETURN NEW;
     END IF;
 
+    -- NUEVA REGLA: Permitir saltar REPARACION (fase opcional)
+    -- TEST_INICIAL(2) puede ir directo a ENSAMBLE(4) saltando REPARACION(3)
+    IF OLD."faseActual" = 'TEST_INICIAL'::"FaseProceso" AND NEW."faseActual" = 'ENSAMBLE'::"FaseProceso" THEN
+        INSERT INTO "Log"(accion, entidad, detalle, "userId", "createdAt")
+        VALUES (
+          'SALTO_REPARACION',
+          'Modem',
+          'Equipo saltó la fase REPARACION (fase opcional) - SN: ' || NEW.sn,
+          NEW."responsableId",
+          NOW()
+        );
+        RETURN NEW;
+    END IF;
+
+    -- NUEVA REGLA: Permitir regresar de REPARACION a TEST_INICIAL
+    -- REPARACION(3) puede regresar a TEST_INICIAL(2) para re-evaluación
+    IF OLD."faseActual" = 'REPARACION'::"FaseProceso" AND NEW."faseActual" = 'TEST_INICIAL'::"FaseProceso" THEN
+        INSERT INTO "Log"(accion, entidad, detalle, "userId", "createdAt")
+        VALUES (
+          'REGRESO_RETEST',
+          'Modem',
+          'Equipo regresó de REPARACION a TEST_INICIAL para re-evaluación - SN: ' || NEW.sn,
+          NEW."responsableId",
+          NOW()
+        );
+        RETURN NEW;
+    END IF;
+
     -- REGLA ESPECIAL: SCRAP solo puede ir a ENSAMBLE
     IF OLD."faseActual" = 'SCRAP'::"FaseProceso" AND NEW."faseActual" <> 'ENSAMBLE'::"FaseProceso" THEN
         v_mensaje := 'Un modem en SCRAP solo puede transicionar a ENSAMBLE, no a ' || NEW."faseActual"::text;
@@ -144,9 +296,9 @@ BEGIN
         RAISE EXCEPTION '%', v_mensaje;
     END IF;
 
-    -- Regla de no retroceso (excepto casos especiales y REPARACION)
+    -- Regla de no retroceso (excepto casos especiales ya contemplados arriba)
     IF v_orden_nuevo < v_orden_ant 
-       AND NEW."faseActual" <> 'REPARACION'::"FaseProceso"
+       AND NOT (OLD."faseActual" = 'REPARACION'::"FaseProceso" AND NEW."faseActual" = 'TEST_INICIAL'::"FaseProceso")
        AND NOT (OLD."faseActual" = 'SCRAP'::"FaseProceso" AND NEW."faseActual" = 'ENSAMBLE'::"FaseProceso") THEN
         v_mensaje := 'No se puede retroceder de fase ' || OLD."faseActual"::text || ' a ' || NEW."faseActual"::text;
         INSERT INTO "Log"(accion, entidad, detalle, "userId", "createdAt")
@@ -154,13 +306,13 @@ BEGIN
         RAISE EXCEPTION '%', v_mensaje;
     END IF;
 
-    -- Regla de no saltar fases (excepto para ir a SCRAP o REPARACION)
+    -- Regla de no saltar fases (excepto casos especiales ya contemplados arriba)
     IF v_orden_nuevo > v_orden_ant + 1 
        AND NEW."faseActual" <> 'SCRAP'::"FaseProceso"
-       AND NEW."faseActual" <> 'REPARACION'::"FaseProceso" THEN
+       AND NOT (OLD."faseActual" = 'TEST_INICIAL'::"FaseProceso" AND NEW."faseActual" = 'ENSAMBLE'::"FaseProceso") THEN
         v_mensaje := 'No se puede saltar de fase '
                       || OLD."faseActual"::text || ' a ' || NEW."faseActual"::text
-                      || '. Debe seguir REGISTRO->TEST_INICIAL->ENSAMBLE->RETEST->EMPAQUE';
+                      || '. Flujo normal: REGISTRO→TEST_INICIAL→[REPARACION]→ENSAMBLE→RETEST→EMPAQUE';
         INSERT INTO "Log"(accion, entidad, detalle, "userId", "createdAt")
         VALUES ('VIOLACION_REGLA','Modem',v_mensaje,COALESCE(NEW."responsableId",1),NOW());
         RAISE EXCEPTION '%', v_mensaje;
@@ -192,6 +344,7 @@ BEGIN
         WHEN 'UReg' THEN v_fase_permitida := 'REGISTRO';
         WHEN 'UA' THEN v_fase_permitida := NULL; -- UA puede usar cualquier fase
         WHEN 'UTI' THEN v_fase_permitida := 'TEST_INICIAL';
+        WHEN 'URep' THEN v_fase_permitida := 'REPARACION'; -- NUEVO: URep para REPARACION
         WHEN 'UEN' THEN v_fase_permitida := 'ENSAMBLE';
         WHEN 'UR' THEN v_fase_permitida := 'RETEST';
         WHEN 'UE' THEN v_fase_permitida := 'EMPAQUE';
@@ -606,3 +759,45 @@ BEGIN
         END IF;
     END LOOP;
 END $$;
+
+-- ===================== 14) TRIGGER SISTEMA DE REPARACIONES =====================
+
+-- Crear trigger para validar códigos de reparación
+CREATE OR REPLACE FUNCTION validar_codigos_reparacion()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_codigo_rep_id INTEGER;
+    v_nivel_rep TEXT;
+    v_scrap TEXT;
+BEGIN
+    -- Solo aplicar cuando se registra un código de daño
+    IF NEW."codigoDanoId" IS NULL THEN
+        RETURN NEW;
+    END IF;
+    
+    -- Obtener información del código de daño
+    SELECT cd."codigoRepId", cd."nivelRep"::TEXT, cd.scrap
+    INTO v_codigo_rep_id, v_nivel_rep, v_scrap
+    FROM "CodigoDano" cd
+    WHERE cd.id = NEW."codigoDanoId";
+    
+    -- Si el código de daño tiene un código de reparación asociado, asignarlo
+    IF v_codigo_rep_id IS NOT NULL THEN
+        NEW."codigoReparacionId" = v_codigo_rep_id;
+    END IF;
+    
+    -- Si el código indica SCRAP, registrar log
+    IF v_scrap IN ('SC1', 'SC2', 'SC3') THEN
+        INSERT INTO "Log"(accion, entidad, detalle, "userId", "createdAt")
+        VALUES ('CODIGO_SCRAP', 'Registro', 'Código de daño indica SCRAP: ' || v_scrap, NEW."userId", NOW());
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Crear el trigger
+CREATE TRIGGER validar_codigos_reparacion_trigger
+BEFORE INSERT OR UPDATE OF "codigoDanoId" ON "Registro"
+FOR EACH ROW
+EXECUTE FUNCTION validar_codigos_reparacion();
