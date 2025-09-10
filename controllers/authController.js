@@ -8,7 +8,6 @@ const { v4: uuidv4 } = require('uuid');
 // IMPORTACIONES FALTANTES - AÑADIDAS
 const userRepo = require('../repositories/userRepositoryPrisma');
 const { setFlashMessage } = require('../utils/flashMessage');
-const redis = require('../redisClient');
 const { sendRecoveryEmail } = require('../emailSender');
 const { createOrUpdateJob } = require('../utils/jobManager');
 
@@ -68,7 +67,7 @@ exports.login = async (req, res) => {
     setFlashMessage(res, '¡Inicio de sesión éxitoso.', 'success');
     
     // Redirección según rol
-    const rolesSeleccionLote = ['UReg', 'UTI', 'UR', 'URep', 'UE', 'UEN'];
+    const rolesSeleccionLote = ['UReg', 'UTI', 'UR', 'UE', 'UEN'];
     let redirectTo;
     switch (user.rol) {
       case 'UAI':
@@ -85,9 +84,6 @@ exports.login = async (req, res) => {
         break;
       case 'UReg':
         redirectTo = '/seleccionlote';
-        break;
-      case 'URep':
-        redirectTo = '/reparacion'; // Nueva vista específica para reparaciones
         break;
       default:
         if (rolesSeleccionLote.includes(user.rol)) {
