@@ -24,7 +24,6 @@
   "author": "tu-nombre",
   "license": "ISC",
   "dependencies": {
-    "@prisma/client": "^6.14.0",
     "axios": "^1.10.0",
     "bcrypt": "^5.1.1",
     "cloudinary": "^1.41.3",
@@ -46,10 +45,11 @@
     "winston": "^3.17.0"
   },
   "devDependencies": {
+    "@prisma/client": "^6.16.0",
     "concurrently": "^9.1.2",
     "jest": "^30.0.4",
     "nodemon": "^3.1.10",
-    "prisma": "^6.14.0",
+    "prisma": "^6.16.0",
     "sass": "^1.89.0",
     "supertest": "^7.1.3"
   },
